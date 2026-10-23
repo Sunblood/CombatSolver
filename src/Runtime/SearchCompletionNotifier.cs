@@ -91,10 +91,10 @@ internal static class SearchCompletionNotifier
     private static string Message(SearchCompletionNotificationKind kind)
         => kind switch
         {
-            SearchCompletionNotificationKind.Succeeded => "计算完成，推荐路线已经显示。",
-            SearchCompletionNotificationKind.Failed => "计算失败，请查看游戏内提示。",
-            SearchCompletionNotificationKind.Canceled => "计算已停止。",
-            SearchCompletionNotificationKind.Stale => "计算结束，但战斗状态已经变化，结果未采用。",
+            SearchCompletionNotificationKind.Succeeded => SolverText.Get("计算完成，推荐路线已经显示。"),
+            SearchCompletionNotificationKind.Failed => SolverText.Get("计算失败，请查看游戏内提示。"),
+            SearchCompletionNotificationKind.Canceled => SolverText.Get("计算已停止。"),
+            SearchCompletionNotificationKind.Stale => SolverText.Get("计算结束，但战斗状态已经变化，结果未采用。"),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
 
@@ -106,6 +106,7 @@ internal static class SearchCompletionNotifier
             return false;
 
         IntPtr icon = LoadIcon(IntPtr.Zero, (IntPtr)InformationIconResource);
+        string appTitle = SolverText.Get("战斗路线求解器");
         NotifyIconData data = new()
         {
             Size = (uint)Marshal.SizeOf<NotifyIconData>(),
@@ -114,9 +115,9 @@ internal static class SearchCompletionNotifier
             Flags = NotifyIconFlagInfo | NotifyIconFlagTip |
                     (icon == IntPtr.Zero ? 0u : NotifyIconFlagIcon),
             Icon = icon,
-            Tip = "战斗路线求解器",
+            Tip = appTitle,
             Info = message,
-            InfoTitle = "战斗路线求解器",
+            InfoTitle = appTitle,
             InfoFlags = NotifyIconInfo | NotifyIconRespectQuietTime,
         };
 
