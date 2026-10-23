@@ -9,8 +9,7 @@ internal sealed partial class SolverRouteActionFlow : Container
     private float _height;
 
     public override Vector2 _GetMinimumSize()
-        => new(GetChildren().OfType<Control>().Where(child => child.Visible)
-            .Select(child => child.GetCombinedMinimumSize().X).DefaultIfEmpty(0).Max(), _height);
+        => new(0, _height);
 
     public override void _Notification(int what)
     {

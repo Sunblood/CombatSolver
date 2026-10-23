@@ -91,22 +91,24 @@ internal sealed class SolverDisplayNames
             .GroupBy(creature => CaptureCreatureBaseName(creature, monsterNames), StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
         Dictionary<string, int> enemyTypeNumbers = new(StringComparer.Ordinal);
+        int totalEnemies = state.Enemies.Count;
         foreach (Creature creature in state.Creatures.OrderBy(creature => NCombatRoom.Instance?.GetCreatureNode(creature)?.GlobalPosition.X ?? 0))
         {
             if (creature.CombatId is not uint combatId)
                 continue;
             string baseName = CaptureCreatureBaseName(creature, monsterNames);
-            if (creature.Side == CombatSide.Enemy
-                && enemyTypeCounts.GetValueOrDefault(baseName) > 1)
+            if (creature.Side == CombatSide.Enemy)
             {
-                string typeKey = baseName;
-                int number = enemyTypeNumbers.GetValueOrDefault(typeKey) + 1;
-                enemyTypeNumbers[typeKey] = number;
-                bool positioned = NCombatRoom.Instance?.GetCreatureNode(creature) != null;
-                string position = positioned
-                    ? LocManager.Instance.Language is "zhs" or "zht" ? $"左起{number}" : $"#{number} from left"
-                    : $"#{number}";
-                creatureNames[combatId] = $"{baseName}（{position}）";
+                if (totalEnemies <= 1)
+                {
+                    creatureNames[combatId] = string.Empty;
+                }
+                else
+                {
+                    int index = enemyTypeNumbers.GetValueOrDefault("GLOBAL_ENEMY") + 1;
+                    enemyTypeNumbers["GLOBAL_ENEMY"] = index;
+                    creatureNames[combatId] = $"E{index}";
+                }
             }
             else
             {
@@ -219,22 +221,22 @@ internal sealed class SolverDisplayNames
         if (creature.CombatId is uint id && _creatures.TryGetValue(id, out string? captured))
             return captured;
         if (knownEnemies == null || creature.Side != CombatSide.Enemy)
-            return fallback;
+            return creature.Side == CombatSide.Enemy && (knownEnemies == null || knownEnemies.Count <= 1) ? string.Empty : fallback;
+        if (knownEnemies.Count <= 1)
+            return string.Empty;
+
         // Slot ranks are frozen from the native scene. Unslotted encounters use
         // insertion order, as native PositionEnemies does. KnownEnemies retains
         // dead participants so the labels stay stable through the route. A predicted
         // summon may carry a scene-only slot beyond the frozen ranks; it keeps the
         // roster insertion order after known slots instead of failing the name read.
-        var peers = knownEnemies.Where(enemy => CaptureCreatureBaseName(enemy, _monsters) == fallback)
+        var peers = knownEnemies
             .OrderBy(enemy => enemy.SlotName is { } slot
                 ? _slotOrder.GetValueOrDefault(slot, int.MaxValue)
                 : 0).ToArray();
         int index = Array.FindIndex(peers, enemy => enemy.CombatId == creature.CombatId);
         if (index < 0) throw new InvalidOperationException("生成敌人缺少所属预测阵容，无法确定显示位置。");
-        string position = _positioned
-            ? _english ? $"#{index + 1} from left" : $"左起{index + 1}"
-            : $"#{index + 1}";
-        return $"{fallback}（{position}）";
+        return $"E{index + 1}";
     }
 
     private static string CreatureTypeKey(Creature creature)

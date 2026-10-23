@@ -140,7 +140,7 @@ internal sealed partial class UnattendedTestRunner
                         || spawned.Where((creature, index) =>
                             names[index] != displayNames.Creature(
                                 childCombat.KnownEnemies.Single(enemy => enemy.CombatId == creature.CombatId), childCombat.KnownEnemies)
-                            || !names[index].Contains(english ? "from left" : "左起")).Any())
+                            || !names[index].Equals($"E{index + 1}", StringComparison.Ordinal)).Any())
                         throw new InvalidOperationException("Spawned targets must retain left-to-right labels across Fork.");
                     if (positionedSpawn)
                     {
@@ -150,8 +150,8 @@ internal sealed partial class UnattendedTestRunner
                         var ordered = spawned.OrderBy(creature => scene.GetNode<Marker2D>(creature.SlotName!).GlobalPosition.X).ToArray();
                         for (int index = 0; index < ordered.Length; index++)
                         {
-                            string expected = english ? $"#{index + 1} from left" : $"左起{index + 1}";
-                            if (!displayNames.Creature(ordered[index], simulated.KnownEnemies).Contains(expected))
+                            string expected = $"E{index + 1}";
+                            if (!displayNames.Creature(ordered[index], simulated.KnownEnemies).Equals(expected, StringComparison.Ordinal))
                                 throw new InvalidOperationException("Spawn label order differs from native slot coordinates.");
                         }
                         simulated.RemoveCreature(ordered[0]);

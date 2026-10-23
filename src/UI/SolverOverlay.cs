@@ -2975,9 +2975,7 @@ internal static class SolverOverlay
         float defaultPrimaryWidth = Math.Min(
             SolverUiTokens.Size.ExpandedMaxWidth,
             Math.Max(SolverUiTokens.Size.ExpandedMinWidth, viewportSize.X * 0.58f));
-        float minimumWidth = Math.Min(
-            Math.Max(SolverSettings.MinimumOverlayWidth, contentMinimum.X),
-            availableWidth);
+        float minimumWidth = Math.Min(SolverSettings.MinimumOverlayWidth, availableWidth);
         float width = _collapsed
             ? Math.Clamp(
                 SolverUiTokens.Size.CollapsedWidth,

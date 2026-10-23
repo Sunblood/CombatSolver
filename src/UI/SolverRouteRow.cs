@@ -53,7 +53,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
             SolverUiTokens.Type.Body,
             index == 0 ? SolverUiTokens.Palette.Accent : SolverUiTokens.Palette.TextPrimary,
             FontType.Bold);
-        TurnLabel.CustomMinimumSize = new Vector2(SolverUiTokens.Size.TurnColumnWidth, SolverUiTokens.Size.ActionPillHeight);
+        TurnLabel.CustomMinimumSize = new Vector2(0, SolverUiTokens.Size.ActionPillHeight);
         TurnLabel.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
         TurnLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         layout.AddChild(TurnLabel);
@@ -73,9 +73,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
         HBoxContainer outcomeLayout = new()
         {
             Alignment = BoxContainer.AlignmentMode.End,
-            CustomMinimumSize = new Vector2(
-                SolverUiTokens.Size.OutcomeColumnWidth,
-                SolverUiTokens.Size.ActionPillHeight),
+            CustomMinimumSize = new Vector2(0, SolverUiTokens.Size.ActionPillHeight),
             SizeFlagsHorizontal = SizeFlags.ShrinkEnd,
             SizeFlagsVertical = SizeFlags.ShrinkCenter,
             MouseFilter = MouseFilterEnum.Ignore,
@@ -88,9 +86,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
             FontType.Bold);
         EnemyDamageLabel.HorizontalAlignment = HorizontalAlignment.Right;
         EnemyDamageLabel.AutowrapMode = TextServer.AutowrapMode.Off;
-        EnemyDamageLabel.CustomMinimumSize = new Vector2(
-            SolverUiTokens.Size.MetricsDamageWidth,
-            SolverUiTokens.Size.ActionPillHeight);
+        EnemyDamageLabel.CustomMinimumSize = new Vector2(0, SolverUiTokens.Size.ActionPillHeight);
         EnemyDamageLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         outcomeLayout.AddChild(EnemyDamageLabel);
         OutcomeLabel = SolverUiTokens.CreateLabel(
@@ -100,9 +96,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
             FontType.Bold);
         OutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
         OutcomeLabel.AutowrapMode = TextServer.AutowrapMode.Off;
-        OutcomeLabel.CustomMinimumSize = new Vector2(
-            SolverUiTokens.Size.MetricsHpWidth,
-            SolverUiTokens.Size.ActionPillHeight);
+        OutcomeLabel.CustomMinimumSize = new Vector2(0, SolverUiTokens.Size.ActionPillHeight);
         OutcomeLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         outcomeLayout.AddChild(OutcomeLabel);
         EnergyLabel = SolverUiTokens.CreateLabel(
@@ -112,9 +106,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
             FontType.Bold);
         EnergyLabel.HorizontalAlignment = HorizontalAlignment.Right;
         EnergyLabel.AutowrapMode = TextServer.AutowrapMode.Off;
-        EnergyLabel.CustomMinimumSize = new Vector2(
-            SolverUiTokens.Size.MetricsEnergyWidth,
-            SolverUiTokens.Size.ActionPillHeight);
+        EnergyLabel.CustomMinimumSize = new Vector2(0, SolverUiTokens.Size.ActionPillHeight);
         EnergyLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         outcomeLayout.AddChild(EnergyLabel);
         layout.AddChild(outcomeLayout);

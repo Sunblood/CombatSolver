@@ -280,8 +280,8 @@ internal sealed partial class SolverPotionStrategyPanel : PanelContainer
     private static SolverPotionDirective NextDirective(SolverPotionDirective directive)
         => directive switch
         {
-            SolverPotionDirective.Smart => SolverPotionDirective.Disabled,
-            SolverPotionDirective.Disabled => SolverPotionDirective.Force,
+            SolverPotionDirective.Smart => SolverPotionDirective.Force,
+            SolverPotionDirective.Force => SolverPotionDirective.Disabled,
             _ => SolverPotionDirective.Smart,
         };
 

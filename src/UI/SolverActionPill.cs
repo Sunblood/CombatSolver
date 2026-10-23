@@ -12,7 +12,7 @@ internal static class SolverActionPill
         bool killed = action.Kills.Count > 0;
         Color marker = ActionColor(action.VisualKind);
         if (killed)
-            marker = SolverUiTokens.Palette.Success;
+            marker = SolverUiTokens.Palette.Warning;
 
         PanelContainer pill = new()
         {
@@ -102,13 +102,12 @@ internal static class SolverActionPill
         }
         if (killed)
         {
-            Label killsLabel = SolverUiTokens.CreateLabel(
-                SolverText.Format($"击杀：{string.Join("、", action.Kills)}"),
-                SolverUiTokens.Type.Caption,
-                SolverUiTokens.Palette.Success,
-                FontType.Bold);
-            content.AddChild(killsLabel);
-            refreshers.Add(updated => killsLabel.Text = SolverText.Format($"击杀：{string.Join("、", updated.Kills)}"));
+            pill.AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(
+                SolverUiTokens.Palette.SurfaceRaised,
+                SolverUiTokens.Palette.Warning,
+                SolverUiTokens.Radius.Small,
+                SolverUiTokens.Spacing.Sm,
+                SolverUiTokens.Spacing.Xs));
         }
         pill.AddChild(content);
         SolverLocaleRefresh.Bind(pill, () =>
