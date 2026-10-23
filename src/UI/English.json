@@ -168,7 +168,7 @@
   "战后遗物回血  {0} HP": "Post-combat healing  {0} HP",
   "战斗结束": "Combat ends",
   "余 {0} 费": "{0} energy left",
-  "对敌伤害 {0}": "Enemy damage: {0}",
+  "对敌伤害 {0}": "Damage: {0}",
   "正在执行": "Executing",
   "正在执行的路线": "Executing route",
   "[color={0}]按推荐顺序执行 [b]{1}[/b] 张牌，完成后结束本回合。[/color]": "[color={0}]Play [b]{1}[/b] cards in order, then end the turn.[/color]",
