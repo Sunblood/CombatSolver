@@ -67,6 +67,7 @@ internal static class SolverOverlay
     private static PanelContainer? _detailsPanel;
     private static Label? _deathOutcomeLabel;
     private static Label? _potionOutcomeLabel;
+    private static Label? _turnCountOutcomeLabel;
     private static Label? _hpOutcomeLabel;
     private static Label? _hpRecoveredOutcomeLabel;
     private static RichTextLabel? _detailsText;
@@ -1081,6 +1082,8 @@ internal static class SolverOverlay
             _hpOutcomeLabel.Visible = false;
         if (_stolenResourceOutcomeLabel != null)
             _stolenResourceOutcomeLabel.Visible = false;
+        if (_turnCountOutcomeLabel != null)
+            _turnCountOutcomeLabel.Visible = false;
         if (_hpRecoveredOutcomeLabel != null)
             _hpRecoveredOutcomeLabel.Visible = false;
         if (_deathOutcomeLabel != null)
@@ -1173,6 +1176,41 @@ internal static class SolverOverlay
             $"risk={snapshot.HasRisk} only_death_routes={snapshot.OnlyDeathRoutesFound}");
     }
 
+    private static int GetCurrentTurnRowIndex()
+    {
+        if (_lastSnapshot == null)
+            return 0;
+        for (int index = 0; index < _lastSnapshot.Turns.Count && index < SolverWeights.UiTurnRows; index++)
+        {
+            if (_lastSnapshot.Turns[index].Turn == _lastSnapshot.StartTurnNumber)
+                return index;
+        }
+        return 0;
+    }
+
+    private static void ScrollToCurrentTurn()
+    {
+        if (_routeScroll == null || !GodotObject.IsInstanceValid(_routeScroll) || _lastSnapshot == null)
+            return;
+        int currentTurnIndex = GetCurrentTurnRowIndex();
+        if (currentTurnIndex <= 0)
+        {
+            _routeScroll.ScrollVertical = 0;
+            return;
+        }
+        if (currentTurnIndex < RouteRows.Length && RouteRows[currentTurnIndex] != null)
+        {
+            SolverRouteRow row = RouteRows[currentTurnIndex];
+            int targetScroll = (int)row.Position.Y;
+            if (targetScroll <= 0)
+            {
+                float rowHeight = SolverUiTokens.Size.RouteRowHeight + SolverUiTokens.Spacing.Sm;
+                targetScroll = (int)(currentTurnIndex * rowHeight);
+            }
+            _routeScroll.ScrollVertical = targetScroll;
+        }
+    }
+
     private static void PopulateRoute(SolverOverlaySnapshot snapshot, bool resetScroll)
     {
         SetRouteVisibility(true);
@@ -1196,6 +1234,11 @@ internal static class SolverOverlay
         {
             _stolenResourceOutcomeLabel.Text = snapshot.UnrecoveredLootText ?? string.Empty;
             _stolenResourceOutcomeLabel.Visible = snapshot.UnrecoveredLootText != null;
+        }
+        if (_turnCountOutcomeLabel != null)
+        {
+            _turnCountOutcomeLabel.Visible = snapshot.Turns.Count > 0;
+            _turnCountOutcomeLabel.Text = SolverText.Format($"共 {snapshot.Turns.Count} 回合");
         }
         if (_potionOutcomeLabel != null)
         {
@@ -1242,8 +1285,16 @@ internal static class SolverOverlay
             SolverOverlayTurnSnapshot turn = snapshot.Turns[index];
             RouteRows[index].TurnLabel.Text = SolverText.Format($"第 {turn.Turn} 回合");
             RouteRows[index].Populate(turn);
-            if (index == 0 && snapshot.PendingTurnSetup)
-                RouteRows[0].SetTurnStartChoiceDeploymentState(active: true, completed: false);
+            if (turn.Turn < snapshot.StartTurnNumber)
+            {
+                RouteRows[index].Modulate = SolverUiTokens.Palette.CompletedActionModulate;
+            }
+            else
+            {
+                RouteRows[index].Modulate = Colors.White;
+            }
+            if (turn.Turn == snapshot.StartTurnNumber && snapshot.PendingTurnSetup)
+                RouteRows[index].SetTurnStartChoiceDeploymentState(active: true, completed: false);
             // Damage alone reads wrong on a turn that also heals: the player wants the number the
             // turn actually leaves them at, not the hits they took on the way there.
             int netHpChange = turn.HpRecovered - turn.HpLoss;
@@ -1261,7 +1312,7 @@ internal static class SolverOverlay
                     : string.Empty);
         }
         if (resetScroll && _routeScroll != null)
-            _routeScroll.ScrollVertical = 0;
+            ScrollToCurrentTurn();
 
         if (_hpOutcomeLabel != null)
         {
@@ -1301,7 +1352,7 @@ internal static class SolverOverlay
             _searchProgressBar.Visible = false;
         ShowDeploymentStep(turn, 0, actionCount, null);
         if (_routeScroll != null)
-            _routeScroll.ScrollVertical = 0;
+            ScrollToCurrentTurn();
         ShowLayer();
         RefreshControls();
         Entry.Logger.Info($"[CombatSolver/Test] UI_STATE state=deploying turn={turn} card_count={actionCount}");
@@ -1312,17 +1363,18 @@ internal static class SolverOverlay
         if (_presentation != SolverOverlayPresentation.Deploying || _lastDeploymentTurn != turn
             || _lastSnapshot?.StartTurnNumber != turn)
             return;
-        if (RouteRows[0] == null)
+        int currentTurnIndex = GetCurrentTurnRowIndex();
+        if (RouteRows[currentTurnIndex] == null)
             return;
-        if (RouteRows[0].DeploymentActionCount != actionCount)
+        if (RouteRows[currentTurnIndex].DeploymentActionCount != actionCount)
         {
             throw new InvalidOperationException(
-                $"部署动作数为 {actionCount}，Overlay 动作胶囊数为 {RouteRows[0].DeploymentActionCount}。");
+                $"部署动作数为 {actionCount}，Overlay 动作胶囊数为 {RouteRows[currentTurnIndex].DeploymentActionCount}。");
         }
         int? activeActionIndex = currentCardTitle != null && completedActions < actionCount
             ? completedActions
             : null;
-        RouteRows[0].SetDeploymentProgress(completedActions, activeActionIndex);
+        RouteRows[currentTurnIndex].SetDeploymentProgress(completedActions, activeActionIndex);
         if (_summaryText != null && completedActions < actionCount && currentCardTitle != null)
         {
             _summaryText.Text =
@@ -1335,9 +1387,10 @@ internal static class SolverOverlay
 
     public static void ShowEndTurnDeploymentStep()
     {
-        if (RouteRows[0] == null)
+        int currentTurnIndex = GetCurrentTurnRowIndex();
+        if (RouteRows[currentTurnIndex] == null)
             return;
-        RouteRows[0].SetEndTurnDeploymentState(active: true, completed: false);
+        RouteRows[currentTurnIndex].SetEndTurnDeploymentState(active: true, completed: false);
         if (_summaryText != null)
         {
             _summaryText.Text =
@@ -1362,7 +1415,9 @@ internal static class SolverOverlay
         _lastDeploymentActionCount = actionCount;
         _lastDeploymentEndedTurn = endedTurn;
         EnsureCreated(host);
-        RouteRows[0].SetEndTurnDeploymentState(active: false, completed: endedTurn);
+        int currentTurnIndex = GetCurrentTurnRowIndex();
+        if (RouteRows[currentTurnIndex] != null)
+            RouteRows[currentTurnIndex].SetEndTurnDeploymentState(active: false, completed: endedTurn);
         _deployQueued = false;
         SetStatus(SolverText.Get("执行完成"), Accent, SolverText.Format($"第 {turn} 回合"));
         if (_routeHeadingLabel != null)
@@ -1893,6 +1948,11 @@ internal static class SolverOverlay
         _stolenResourceOutcomeLabel = CreateTextLabel(string.Empty, SolverUiTokens.Type.Body, Danger, FontType.Bold);
         _stolenResourceOutcomeLabel.Visible = false;
         _routeHeadingRow.AddChild(_stolenResourceOutcomeLabel);
+        _turnCountOutcomeLabel = CreateTextLabel(string.Empty, SolverUiTokens.Type.Body, TextPrimary, FontType.Bold);
+        _turnCountOutcomeLabel.Visible = false;
+        _turnCountOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
+        _turnCountOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
+        _routeHeadingRow.AddChild(_turnCountOutcomeLabel);
         _strategyOutcomeRow = new HFlowContainer { Alignment = FlowContainer.AlignmentMode.End, Visible = false };
         _strategyOutcomeRow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
         _routeHeadingRow.AddChild(_strategyOutcomeRow);

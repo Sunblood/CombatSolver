@@ -220,6 +220,14 @@ internal sealed partial class SolverPotionStrategyPanel : PanelContainer
         };
         layout.AddChild(icon);
 
+        VBoxContainer titleBox = new()
+        {
+            Name = "PotionTitleBox",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+        };
+        titleBox.AddThemeConstantOverride("separation", 2);
+
         Label title = SolverUiTokens.CreateLabel(
             $"#{slot + 1} {potion.Title.GetFormattedText()}",
             SolverUiTokens.Type.Body,
@@ -229,9 +237,20 @@ internal sealed partial class SolverPotionStrategyPanel : PanelContainer
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         title.HorizontalAlignment = HorizontalAlignment.Left;
         title.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        title.CustomMinimumSize = new Vector2(0, 44);
         title.TooltipText = potion.Title.GetFormattedText();
-        layout.AddChild(title);
+        titleBox.AddChild(title);
+
+        int hpCoefficient = PotionUsePolicy.StrategicHpCost(potion);
+        Label hpLabel = SolverUiTokens.CreateLabel(
+            SolverText.Format($"HP系数：{hpCoefficient}"),
+            SolverUiTokens.Type.Caption,
+            SolverUiTokens.Palette.TextSecondary);
+        hpLabel.Name = "PotionHpCoefficient";
+        hpLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        hpLabel.HorizontalAlignment = HorizontalAlignment.Left;
+        titleBox.AddChild(hpLabel);
+
+        layout.AddChild(titleBox);
 
         Button input = CreateDirectiveToggle(directive);
         input.Name = "PotionDirectiveToggle";

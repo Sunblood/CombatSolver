@@ -281,8 +281,10 @@ internal sealed record SolverOverlaySnapshot(
                     : SolverText.Format($"本局扣血  已 {alreadyLost}    预计 {projectedLost} HP")
                 : SolverText.Get("本局扣血  0 HP");
 
-        SolverOverlayTurnSnapshot[] turns = Enumerable.Range(0, searchedTurns)
-            .Select(index => CaptureTurn(result, startTurnNumber + index))
+        int firstTurn = Math.Min(result.StartTurnNumber, startTurnNumber);
+        int totalTurns = result.StartTurnNumber + result.SearchedTurns - firstTurn;
+        SolverOverlayTurnSnapshot[] turns = Enumerable.Range(0, totalTurns)
+            .Select(index => CaptureTurn(result, firstTurn + index))
             .ToArray();
         return new SolverOverlaySnapshot(
             startTurnNumber,

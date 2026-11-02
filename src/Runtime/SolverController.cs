@@ -2712,7 +2712,7 @@ internal static partial class SolverController
     private static SolverOverlaySnapshot MarkRouteAdopted(SolverOverlaySnapshot snapshot)
         => snapshot with
         {
-            StatusText = "方案就绪 · 已采用当前路线",
+            StatusText = SolverText.Get("方案就绪 · 已采用当前路线"),
             StatusTone = SolverOverlayTone.Success,
         };
 
@@ -2733,7 +2733,7 @@ internal static partial class SolverController
         BattleDamageTracker.RegisterPlan(state, result);
         SolverOverlaySnapshot snapshot = SolverOverlaySnapshot.CaptureWithReviewedWorldlines(result, false, 0) with
         {
-            StatusText = "预计算录像路线 · 未启动本地搜索",
+            StatusText = SolverText.Get("预计算录像路线 · 未启动本地搜索"),
             StatusTone = SolverOverlayTone.Success,
         };
         SolverOverlay.ShowResult(host, snapshot);
