@@ -106,27 +106,33 @@ internal sealed partial class SimulatedCombatState
         Player player)
     {
         foreach (RelicModel relic in RelicsOf(player).Where(static relic => !relic.IsMelted))
+            TriggerRelicAfterEnergyReset(simulator, relic, player);
+    }
+
+    internal void TriggerRelicAfterEnergyReset(
+        CombatPredictionSimulator simulator,
+        RelicModel relic,
+        Player player)
+    {
+        switch (relic)
         {
-            switch (relic)
+            case ArtOfWar:
             {
-                case ArtOfWar:
+                StatefulRelicState state = GetStatefulRelicState(relic);
+                if (GetPlayerTurnNumber(player) > 1 && state.Previous == 0)
+                    simulator.GainEnergy(player, relic.DynamicVars.Energy.BaseValue);
+                SetStatefulRelicState(relic, default);
+                break;
+            }
+            case VenerableTeaSet or FakeVenerableTeaSet:
+            {
+                StatefulRelicState state = GetStatefulRelicState(relic);
+                if (state.Current != 0)
                 {
-                    StatefulRelicState state = GetStatefulRelicState(relic);
-                    if (GetPlayerTurnNumber(player) > 1 && state.Previous == 0)
-                        simulator.GainEnergy(player, relic.DynamicVars.Energy.BaseValue);
+                    simulator.GainEnergy(player, relic.DynamicVars.Energy.BaseValue);
                     SetStatefulRelicState(relic, default);
-                    break;
                 }
-                case VenerableTeaSet or FakeVenerableTeaSet:
-                {
-                    StatefulRelicState state = GetStatefulRelicState(relic);
-                    if (state.Current != 0)
-                    {
-                        simulator.GainEnergy(player, relic.DynamicVars.Energy.BaseValue);
-                        SetStatefulRelicState(relic, default);
-                    }
-                    break;
-                }
+                break;
             }
         }
     }

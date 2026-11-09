@@ -42,6 +42,7 @@ internal static class PersistentPowerSupport
         Player player,
         int baseDraw)
     {
+        using var activeSimulation = CombatPredictionContext.Enter(combat);
         // Preserve the native normal/late listener passes. Audited turn/counter
         // relics read the branch directly, never Owner.PlayerCombatState in live.
         decimal result = baseDraw;
@@ -70,6 +71,7 @@ internal static class PersistentPowerSupport
 
     public static int GetModifiedMaxEnergy(SimulatedCombatState combat, Player player)
     {
+        using var activeSimulation = CombatPredictionContext.Enter(combat);
         decimal result = combat.GetBaseMaxEnergy(player);
         int turn = combat.GetPlayerTurnNumber(player);
         foreach (AbstractModel listener in combat.IterateHookListeners())

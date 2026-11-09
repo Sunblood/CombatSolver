@@ -10,6 +10,7 @@ namespace MegaCrit.Sts2.Core.Models
         public void Play() => OnPlay(new(), new());
     }
 }
+namespace MegaCrit.Sts2.Core.Combat { internal sealed class CombatState; }
 namespace MegaCrit.Sts2.Core.Entities.Cards { internal sealed class CardPlay; }
 namespace MegaCrit.Sts2.Core.GameActions.Multiplayer { internal sealed class PlayerChoiceContext; }
 namespace MegaCrit.Sts2.Core.Modding

@@ -38,19 +38,114 @@ internal static class BeforeSideTurnEndMirrors
     private static readonly Registry VeryEarlyRegistry = CreateVeryEarlyRegistry();
     private static readonly Registry EarlyRegistry = CreateEarlyRegistry();
     private static readonly Registry Registry = CreateRegistry();
+    private static readonly object RegistrationLock = new();
+    private static bool _sealed;
+
+    internal static void Seal()
+    {
+        if (Volatile.Read(ref _sealed))
+            return;
+        lock (RegistrationLock)
+            Volatile.Write(ref _sealed, true);
+    }
+
+    public static void RegisterVeryEarly<TModel>(Action<TModel, BeforeSideTurnEndMirrorContext> handler)
+        where TModel : AbstractModel
+        => Register(VeryEarlyRegistry, handler);
+
+    public static void RegisterEarly<TModel>(Action<TModel, BeforeSideTurnEndMirrorContext> handler)
+        where TModel : AbstractModel
+        => Register(EarlyRegistry, handler);
+
+    public static void Register<TModel>(Action<TModel, BeforeSideTurnEndMirrorContext> handler)
+        where TModel : AbstractModel
+        => Register(Registry, handler);
+
+    public static void RegisterVeryEarly(
+        Type modelType,
+        Action<AbstractModel, BeforeSideTurnEndMirrorContext> handler)
+        => Register(VeryEarlyRegistry, modelType, handler);
+
+    public static void RegisterEarly(
+        Type modelType,
+        Action<AbstractModel, BeforeSideTurnEndMirrorContext> handler)
+        => Register(EarlyRegistry, modelType, handler);
+
+    public static void Register(
+        Type modelType,
+        Action<AbstractModel, BeforeSideTurnEndMirrorContext> handler)
+        => Register(Registry, modelType, handler);
+
+    public static void RegisterIgnored(Type modelType)
+    {
+        ArgumentNullException.ThrowIfNull(modelType);
+        lock (RegistrationLock)
+        {
+            if (_sealed)
+                throw new InvalidOperationException("Turn-phase mirrors must be registered before root capture or dispatch.");
+            Registry[] registries = new[] { VeryEarlyRegistry, EarlyRegistry, Registry }
+                .Where(registry => registry.OverridesMethod(modelType)).ToArray();
+            if (registries.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    $"{modelType.FullName} overrides none of BeforeSideTurnEnd/VeryEarly/Early, so it cannot be ignored.");
+            }
+            foreach (Registry registry in registries)
+                registry.ValidateIgnoredRegistration(modelType);
+            foreach (Registry registry in registries)
+                registry.RegisterIgnored(modelType);
+        }
+    }
+
+    private static void Register(
+        Registry registry,
+        Type modelType,
+        Action<AbstractModel, BeforeSideTurnEndMirrorContext> handler)
+    {
+        ArgumentNullException.ThrowIfNull(registry);
+        ArgumentNullException.ThrowIfNull(modelType);
+        ArgumentNullException.ThrowIfNull(handler);
+        if (modelType.IsAbstract)
+            throw new ArgumentException("Turn-phase mirrors require a concrete runtime model type.", nameof(modelType));
+        lock (RegistrationLock)
+        {
+            if (_sealed)
+                throw new InvalidOperationException("Turn-phase mirrors must be registered before root capture or dispatch.");
+            ThirdPartyMirrorRegistration.Register(registry, modelType, handler);
+        }
+    }
+
+    private static void Register<TModel>(
+        Registry registry,
+        Action<TModel, BeforeSideTurnEndMirrorContext> handler)
+        where TModel : AbstractModel
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        if (typeof(TModel).IsAbstract)
+            throw new ArgumentException("Turn-phase mirrors require a concrete runtime model type.");
+        lock (RegistrationLock)
+        {
+            if (_sealed)
+                throw new InvalidOperationException("Turn-phase mirrors must be registered before root capture or dispatch.");
+            registry.Register(handler);
+        }
+    }
 
     public static void InvokeVeryEarly(AbstractModel listener, BeforeSideTurnEndMirrorContext context)
     {
+        Seal();
         VeryEarlyRegistry.Invoke(listener, context);
     }
 
     public static void InvokeEarly(AbstractModel listener, BeforeSideTurnEndMirrorContext context)
     {
+        Seal();
         EarlyRegistry.Invoke(listener, context);
     }
 
     public static void Invoke(AbstractModel listener, BeforeSideTurnEndMirrorContext context)
     {
+        Seal();
         Registry.Invoke(listener, context);
     }
 

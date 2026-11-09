@@ -19,12 +19,17 @@ namespace MegaCrit.Sts2.Core.Models
 {
     class AbstractModel
     {
+        public virtual Task BeforeHandDraw(Entities.Players.Player player, GameActions.Multiplayer.PlayerChoiceContext choice, ICombatState combatState) => Task.CompletedTask;
         public virtual Task AfterPlayerTurnStartEarly(GameActions.Multiplayer.PlayerChoiceContext choice, Entities.Players.Player player) => Task.CompletedTask;
         public virtual Task AfterPlayerTurnStart(GameActions.Multiplayer.PlayerChoiceContext choice, Entities.Players.Player player) => Task.CompletedTask;
         public virtual Task AfterPlayerTurnStartLate(GameActions.Multiplayer.PlayerChoiceContext choice, Entities.Players.Player player) => Task.CompletedTask;
         public virtual Task BeforeSideTurnStart(
             GameActions.Multiplayer.PlayerChoiceContext choice, CombatSide side,
             IReadOnlyList<Creature> participants, ICombatState combatState) => Task.CompletedTask;
+        public virtual Task AfterSideTurnStart(
+            CombatSide side, IReadOnlyList<Creature> participants, ICombatState combatState) => Task.CompletedTask;
+        public virtual Task AfterSideTurnEnd(
+            GameActions.Multiplayer.PlayerChoiceContext choice, CombatSide side, IEnumerable<Creature> participants) => Task.CompletedTask;
         public virtual Task AfterSideTurnEndLate(
             GameActions.Multiplayer.PlayerChoiceContext choice, CombatSide side, IEnumerable<Creature> participants)
             => Task.CompletedTask;
@@ -47,7 +52,7 @@ namespace MegaCrit.Sts2.Core.Models.Powers
 }
 namespace MegaCrit.Sts2.Core.Modding
 {
-    sealed class Manifest { public bool affectsGameplay = true; public string id = "test"; }
+    sealed class Manifest { public bool affectsGameplay = true; public string id = "test"; public string? name = "test"; }
     sealed class Mod { public Manifest? manifest = new(); }
     static class AssemblyInfo
     {
@@ -56,8 +61,10 @@ namespace MegaCrit.Sts2.Core.Modding
 }
 namespace CombatSolver
 {
-    static class Entry { public static Log Logger = new(); }
+    static class Entry { public const string ModId = "CombatSolver"; public static Log Logger = new(); }
     sealed class Log { public void Info(string message) { } }
+    sealed class IncompatibleGameplayModException(string id, string name, string description, string scope)
+        : NotSupportedException($"{id}/{name}/{scope}: {description}");
 }
 namespace CombatSolver.Engine.Common
 {
@@ -111,6 +118,7 @@ namespace CombatSolver.Engine.InCombat.Mirrors
     {
         public required CombatPredictionSimulator Simulator { get; init; }
         public FakeState State => Simulator.State;
+        public ICombatState? CombatState => Simulator.State.CombatState;
         public PredictionTrace.TraceScope PushDispatchSource(AbstractModel model, MirrorMethodSpec spec) => new();
         public void RecordMethodNotMirroredRisk() => Simulator.Risks++;
         public void RecordMethodMirrorIncompleteRisk() => Simulator.Risks++;
@@ -169,5 +177,20 @@ namespace CombatSolver.Engine.InCombat.Mirrors.Hooks.TurnStart
     internal static partial class BeforeSideTurnStartMirrors
     {
         private static partial void RegisterVanilla(MethodMirrorRegistry<AbstractModel, BeforeSideTurnStartMirrorContext> registry) { }
+    }
+    internal static partial class BeforeHandDrawMirrors
+    {
+        private static partial void RegisterVanilla(MethodMirrorRegistry<AbstractModel, BeforeHandDrawMirrorContext> registry) { }
+    }
+    internal static partial class AfterSideTurnStartMirrors
+    {
+        private static partial void RegisterVanilla(MethodMirrorRegistry<AbstractModel, AfterSideTurnStartMirrorContext> registry) { }
+    }
+}
+namespace CombatSolver.Engine.InCombat.Mirrors.Hooks.TurnEnd
+{
+    internal static partial class AfterSideTurnEndMirrors
+    {
+        private static partial void RegisterVanilla(MethodMirrorRegistry<AbstractModel, AfterSideTurnEndMirrorContext> registry) { }
     }
 }

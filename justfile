@@ -7,6 +7,15 @@ default: build
 build:
     dotnet build CombatSolver.csproj -c Release
 
+# Build CombatSolver.HextechAdapter bridge mod in Release mode
+build-hextech:
+    dotnet build adapters/CombatSolver.HextechAdapter/CombatSolver.HextechAdapter.csproj -c Release
+
+# Build both CombatSolver and CombatSolver.HextechAdapter in Release mode
+build-all:
+    dotnet build CombatSolver.csproj -c Release
+    dotnet build adapters/CombatSolver.HextechAdapter/CombatSolver.HextechAdapter.csproj -c Release
+
 # Build CombatSolver in Debug mode
 build-debug:
     dotnet build CombatSolver.csproj -c Debug
@@ -20,5 +29,3 @@ build-launch:
 # Clean build artifacts
 clean:
     dotnet clean CombatSolver.csproj
-
-

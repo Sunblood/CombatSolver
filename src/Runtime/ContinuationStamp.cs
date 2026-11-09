@@ -97,7 +97,7 @@ internal sealed record ContinuationStamp(string StateText)
         SimulatedCombatState.AppendLiveStatefulRelics(text, player);
         RelicPredictionStateSupport.AppendLiveContinuation(text, player);
         ModelPredictionStateMirrors.AppendLiveContinuation(text, state);
-        if (AdaptedCardOnPlayMirrors.CaptureLiveStamp() is { } onPlayStamp)
+        if (AdaptedCardOnPlayMirrors.CaptureLiveStamp(combat: state) is { } onPlayStamp)
             text.Append(";onplay_configuration=").Append(onPlayStamp);
         if (PredictionModHookSubscriberCapture.CaptureLiveLoadoutSummonPowerState(state) is { } loadoutSummonState)
             text.Append(";loadout_summon_powers=").Append(loadoutSummonState);

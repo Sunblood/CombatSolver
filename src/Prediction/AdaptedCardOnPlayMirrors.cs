@@ -8,6 +8,7 @@ using CombatSolver.Engine.Common.Mirrors;
 using CombatSolver.Engine.InCombat.Mirrors.Cards.OnPlay;
 using CombatSolver.Engine.InCombat.Simulation;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
@@ -30,7 +31,8 @@ internal static class AdaptedCardOnPlayMirrors
         BindingFlags.Instance | BindingFlags.NonPublic, [typeof(PlayerChoiceContext), typeof(CardPlay)]);
 
     internal sealed record Registration(MethodInfo Target, string Schema, string Signature, string Implementation,
-        MethodMirrorRegistry<CardModel, CardOnPlayMirrorContext> Mirror);
+        MethodMirrorRegistry<CardModel, CardOnPlayMirrorContext> Mirror,
+        Func<CombatState, bool>? IsPatchActiveInCombat = null);
 
     // Conditional support is not an unconditional entry in the vanilla coverage catalog.
     // Consumers use the standard mirror descriptor plus the required composition.
@@ -42,7 +44,8 @@ internal static class AdaptedCardOnPlayMirrors
     }
 
     public static void Register<TCard>(string schema, MethodInfo target,
-        IReadOnlyList<AdaptedOnPlayPatch> patches, Action<TCard, CardOnPlayMirrorContext> handler)
+        IReadOnlyList<AdaptedOnPlayPatch> patches, Action<TCard, CardOnPlayMirrorContext> handler,
+        Func<CombatState, bool>? isPatchActiveInCombat = null)
         where TCard : CardModel
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(schema);
@@ -57,7 +60,28 @@ internal static class AdaptedCardOnPlayMirrors
         lock (Gate)
         {
             if (_sealed) throw new InvalidOperationException("OnPlay adaptation registration is closed after first capture.");
-            Registrations.Add(typeof(TCard), new(target, schema, signature, MethodIdentity(handler.Method), mirror));
+            Registrations.Add(typeof(TCard), new(target, schema, signature, MethodIdentity(handler.Method), mirror, isPatchActiveInCombat));
+        }
+    }
+
+    public static void Register(Type cardType, string schema, MethodInfo target,
+        IReadOnlyList<AdaptedOnPlayPatch> patches, Action<CardModel, CardOnPlayMirrorContext> handler,
+        Func<CombatState, bool>? isPatchActiveInCombat = null)
+    {
+        ArgumentNullException.ThrowIfNull(cardType);
+        ArgumentException.ThrowIfNullOrWhiteSpace(schema);
+        ArgumentNullException.ThrowIfNull(handler);
+        ArgumentNullException.ThrowIfNull(patches);
+        if (!typeof(CardModel).IsAssignableFrom(cardType) || cardType.IsAbstract || target != ResolveOnPlay(cardType))
+            throw new ArgumentException("The target must be the exact card type's OnPlay implementation.");
+        if (patches.Count == 0) throw new ArgumentException("An adapted composition must contain patches.");
+        string signature = DescribeExpected(patches);
+        var mirror = new MethodMirrorRegistry<CardModel, CardOnPlayMirrorContext>(OnPlay);
+        ThirdPartyMirrorRegistration.Register(mirror, cardType, handler);
+        lock (Gate)
+        {
+            if (_sealed) throw new InvalidOperationException("OnPlay adaptation registration is closed after first capture.");
+            Registrations.Add(cardType, new(target, schema, signature, MethodIdentity(handler.Method), mirror, isPatchActiveInCombat));
         }
     }
 
@@ -90,7 +114,7 @@ internal static class AdaptedCardOnPlayMirrors
 
     // A configuration stamp belongs to Runtime's live boundaries. Workers only use the frozen string.
     // Include all patched card OnPlay methods so later additions invalidate old plans as well.
-    internal static string? CaptureLiveStamp(ISet<MethodInfo>? patchedOnPlayTargets = null)
+    internal static string? CaptureLiveStamp(ISet<MethodInfo>? patchedOnPlayTargets = null, CombatState? combat = null)
     {
         if (!Seal()) return null;
         StringBuilder text = new();
@@ -101,6 +125,8 @@ internal static class AdaptedCardOnPlayMirrors
             Field(text, pair.Value.Schema);
             Field(text, pair.Value.Signature);
             Field(text, pair.Value.Implementation);
+            if (combat is not null && pair.Value.IsPatchActiveInCombat is { } isActive)
+                Field(text, isActive(combat) ? "1" : "0");
             RejectPatchedStateMachine(pair.Value.Target);
         }
         foreach (MethodBase method in Harmony.GetAllPatchedMethods()

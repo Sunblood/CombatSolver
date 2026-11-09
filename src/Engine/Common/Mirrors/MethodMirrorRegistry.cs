@@ -398,6 +398,40 @@ internal sealed class MethodMirrorRegistry<TBase, TContext, TResult>(MirrorMetho
             (receiver, context) => handler((TModel)receiver, context)));
     }
 
+    public void RegisterIgnored<TModel>()
+        where TModel : TBase
+    {
+        var type = typeof(TModel);
+        ValidateOverride(type);
+        _registrations.Add(type, new LookupResult(MirrorDispatchKind.Ignored, null));
+    }
+
+    public void RegisterIgnored(Type type)
+    {
+        ValidateIgnoredRegistration(type);
+        _registrations.Add(type, new LookupResult(MirrorDispatchKind.Ignored, null));
+    }
+
+    internal void ValidateIgnoredRegistration(Type type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+        if (type.IsAbstract || type.ContainsGenericParameters || !typeof(TBase).IsAssignableFrom(type))
+            throw new ArgumentException("Ignored mirrors require a concrete receiver of the registry base type.", nameof(type));
+        ValidateOverride(type);
+        if (_registrations.ContainsKey(type))
+            throw new ArgumentException($"A mirror is already registered for {type.FullName}.", nameof(type));
+    }
+
+    public bool HasRegisteredHandler(TBase receiver)
+    {
+        return _registrations.TryGetValue(receiver.GetType(), out var registration) &&
+            registration.Kind is MirrorDispatchKind.Handled;
+    }
+
+    public MirrorDispatchKind ResolveDispatchKind(TBase receiver) => Lookup(receiver.GetType()).Kind;
+
+    public bool OverridesMethod(Type type) => method.TryGetOverride(type, out _);
+
     public MethodMirrorRegistryDescriptor DescribeMirrorSupport()
     {
         MethodMirrorRegistrationDescriptor[] registrations = _registrations

@@ -35,6 +35,16 @@ internal static class ThirdPartyMirrorRegistration
             nameof(RegisterResultCore));
 
     /// <summary>
+    /// Registers an abstract base class's <c>sealed override</c> hook forwarder so mirror registries inspect
+    /// whether concrete derived models override <paramref name="forwardedVirtualMethod"/>.
+    /// </summary>
+    public static void RegisterForwardedHook(
+        Type wrapperBaseType,
+        MethodInfo nativeHookMethod,
+        MethodInfo forwardedVirtualMethod)
+        => MirrorMethodSpec.RegisterForwardedHook(wrapperBaseType, nativeHookMethod, forwardedVirtualMethod);
+
+    /// <summary>
     /// Registers <paramref name="handler"/> for <paramref name="modelType"/> in the given mirror registry.
     /// </summary>
     /// <remarks>
@@ -46,12 +56,23 @@ internal static class ThirdPartyMirrorRegistration
         Type modelType,
         Action<AbstractModel, TContext> handler)
         where TContext : IMethodMirrorContext<AbstractModel>
+        => Register<AbstractModel, TContext>(registry, modelType, handler);
+
+    /// <summary>
+    /// Registers <paramref name="handler"/> for <paramref name="modelType"/> in a typed model mirror registry.
+    /// </summary>
+    public static void Register<TBase, TContext>(
+        MethodMirrorRegistry<TBase, TContext> registry,
+        Type modelType,
+        Action<TBase, TContext> handler)
+        where TBase : AbstractModel
+        where TContext : IMethodMirrorContext<TBase>
     {
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(modelType);
         ArgumentNullException.ThrowIfNull(handler);
         InvokeCore(
-            RegisterCoreMethod.MakeGenericMethod(modelType, typeof(TContext)),
+            RegisterCoreMethod.MakeGenericMethod(typeof(TBase), modelType, typeof(TContext)),
             [registry, handler]);
     }
 
@@ -63,12 +84,23 @@ internal static class ThirdPartyMirrorRegistration
         Type modelType,
         Func<AbstractModel, TContext, TResult> handler)
         where TContext : IMethodMirrorContext<AbstractModel>
+        => RegisterResult<AbstractModel, TContext, TResult>(registry, modelType, handler);
+
+    /// <summary>
+    /// Result-returning variant for a typed model mirror registry.
+    /// </summary>
+    public static void RegisterResult<TBase, TContext, TResult>(
+        MethodMirrorRegistry<TBase, TContext, TResult> registry,
+        Type modelType,
+        Func<TBase, TContext, TResult> handler)
+        where TBase : AbstractModel
+        where TContext : IMethodMirrorContext<TBase>
     {
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(modelType);
         ArgumentNullException.ThrowIfNull(handler);
         InvokeCore(
-            RegisterResultCoreMethod.MakeGenericMethod(modelType, typeof(TContext), typeof(TResult)),
+            RegisterResultCoreMethod.MakeGenericMethod(typeof(TBase), modelType, typeof(TContext), typeof(TResult)),
             [registry, handler]);
     }
 
@@ -93,17 +125,19 @@ internal static class ThirdPartyMirrorRegistration
         }
     }
 
-    private static void RegisterCore<TModel, TContext>(
-        MethodMirrorRegistry<AbstractModel, TContext> registry,
-        Action<AbstractModel, TContext> handler)
-        where TModel : AbstractModel
-        where TContext : IMethodMirrorContext<AbstractModel>
+    private static void RegisterCore<TBase, TModel, TContext>(
+        MethodMirrorRegistry<TBase, TContext> registry,
+        Action<TBase, TContext> handler)
+        where TBase : AbstractModel
+        where TModel : TBase
+        where TContext : IMethodMirrorContext<TBase>
         => registry.Register<TModel>((model, context) => handler(model, context));
 
-    private static void RegisterResultCore<TModel, TContext, TResult>(
-        MethodMirrorRegistry<AbstractModel, TContext, TResult> registry,
-        Func<AbstractModel, TContext, TResult> handler)
-        where TModel : AbstractModel
-        where TContext : IMethodMirrorContext<AbstractModel>
+    private static void RegisterResultCore<TBase, TModel, TContext, TResult>(
+        MethodMirrorRegistry<TBase, TContext, TResult> registry,
+        Func<TBase, TContext, TResult> handler)
+        where TBase : AbstractModel
+        where TModel : TBase
+        where TContext : IMethodMirrorContext<TBase>
         => registry.Register<TModel>((model, context) => handler(model, context));
 }

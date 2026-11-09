@@ -231,6 +231,7 @@ internal sealed partial class CombatPredictionSimulator
 
     internal bool ResumeExecutionContinuation(PredictionExecutionContinuation continuation)
     {
+        using var activeSimulation = CombatPredictionContext.Enter(this);
         if (_captureExecutionContinuation || _ownedExecutionContinuation != null
             || !ReferenceEquals(continuation, _preparedExecutionContinuation))
             throw new InvalidOperationException("Execution continuation resume does not own this prepared child.");

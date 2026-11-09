@@ -5,6 +5,7 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.Models.Relics;
 using CombatSolver.Engine.Common;
+using CombatSolver.Engine.InCombat.Mirrors.Hooks.Power;
 
 namespace CombatSolver;
 
@@ -96,7 +97,69 @@ internal sealed partial class SimulatedCombatState
                 CurrentPowerCardSource);
         }
         amount = ModifyPowerAmountForUnsettlingLamp(power, amount);
-        return ModifyPowerAmountForRuinedHelmet(power, target, amount);
+        amount = ModifyPowerAmountForRuinedHelmet(power, target, amount);
+        return ModifyPowerAmountReceivedExternal(power, target, amount, applier);
+    }
+
+    private int ModifyPowerAmountReceivedExternal(
+        PowerModel power,
+        Creature target,
+        int amount,
+        Creature? applier)
+    {
+        ModifyPowerAmountReceivedMirrors.Seal();
+        IReadOnlyList<AbstractModel> listeners = GetMirroredHookListeners(run: false);
+        if (listeners is MirroredHookListenerSnapshot snapshot
+            && !snapshot.HasAny(MirroredHookMask.AfterAutoPostPlayPhaseEntered))
+            return amount;
+
+        bool hasExternal = ModifyPowerAmountReceivedMirrors.HasExternalRegistrations;
+        if (!hasExternal)
+        {
+            for (int index = 0; index < listeners.Count; index++)
+            {
+                AbstractModel listener = listeners[index];
+                if (listener.GetType().Assembly != typeof(AbstractModel).Assembly
+                    && ModifyPowerAmountReceivedMirrors.HasOverride(listener))
+                {
+                    hasExternal = true;
+                    break;
+                }
+            }
+        }
+        if (!hasExternal)
+            return amount;
+
+        var tryContext = new ModifyPowerAmountReceivedMirrorContext
+        {
+            Combat = this,
+            Power = power,
+            Target = target,
+            Applier = applier,
+            Amount = amount,
+            CardSource = CurrentPowerCardSource
+        };
+        decimal current = amount;
+        for (int index = 0; index < listeners.Count; index++)
+        {
+            AbstractModel listener = listeners[index];
+            if (listener is ArtifactPower or RuinedHelmet)
+                continue;
+            tryContext.Amount = current;
+            if (!ModifyPowerAmountReceivedMirrors.TryModify(listener, tryContext, out decimal modified))
+                continue;
+            current = modified;
+            var afterContext = new AfterModifyingPowerAmountReceivedMirrorContext
+            {
+                Combat = this,
+                Power = power,
+                Target = target,
+                Applier = applier,
+                ModifiedAmount = current
+            };
+            ModifyPowerAmountReceivedMirrors.AfterModifying(listener, afterContext);
+        }
+        return (int)current;
     }
 
     private void ObserveUnsettlingLamp(

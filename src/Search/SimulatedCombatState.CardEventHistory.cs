@@ -10,6 +10,7 @@ using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.Models.Orbs;
 using MegaCrit.Sts2.Core.ValueProps;
 using CombatSolver.Engine.Common;
+using CombatSolver.Engine.InCombat.Mirrors.Hooks.Card;
 using CombatSolver.Engine.InCombat.Simulation;
 
 namespace CombatSolver;
@@ -166,27 +167,68 @@ internal sealed partial class SimulatedCombatState
         if (preview is Flatten flatten && simulator.State.GetOsty(preview.Owner) is { } osty
             && GetCreatureAttacksThisTurn(osty) > 0)
             flatten.EnergyCost.SetThisTurn(0);
-        if (preview.IsClone)
-            return;
-        Creature owner = preview.Owner.Creature;
-        switch (preview)
+        if (!preview.IsClone)
         {
-            case BansheesCry bansheesCry:
+            Creature owner = preview.Owner.Creature;
+            switch (preview)
             {
-                int etherealPlays = simulator.History.Entries
-                    .OfType<CombatPredictionCardPlayFinishedEntry>()
-                    .Count(entry => entry.WasEthereal && ReferenceEquals(entry.CardPlay.Player, preview.Owner));
-                bansheesCry.EnergyCost.AddThisCombat(-etherealPlays * bansheesCry.DynamicVars.Energy.IntValue);
-                break;
+                case BansheesCry bansheesCry:
+                {
+                    int etherealPlays = simulator.History.Entries
+                        .OfType<CombatPredictionCardPlayFinishedEntry>()
+                        .Count(entry => entry.WasEthereal && ReferenceEquals(entry.CardPlay.Player, preview.Owner));
+                    bansheesCry.EnergyCost.AddThisCombat(-etherealPlays * bansheesCry.DynamicVars.Energy.IntValue);
+                    break;
+                }
+                case Pinpoint pinpoint:
+                    pinpoint.EnergyCost.AddThisTurn(-GetSkillCardsPlayedThisTurn(owner));
+                    break;
+                case Stomp stomp:
+                    stomp.EnergyCost.AddThisTurn(-GetAttacksPlayedThisTurn(owner));
+                    break;
             }
-            case Pinpoint pinpoint:
-                pinpoint.EnergyCost.AddThisTurn(-GetSkillCardsPlayedThisTurn(owner));
-                break;
-            case Stomp stomp:
-                stomp.EnergyCost.AddThisTurn(-GetAttacksPlayedThisTurn(owner));
-                break;
+            NormalizeCardAfflictions(simulator);
         }
-        NormalizeCardAfflictions(simulator);
+        DispatchExternalAfterCardEnteredCombat(simulator, card);
+    }
+
+    private void DispatchExternalAfterCardEnteredCombat(CombatPredictionSimulator simulator, PredictedCard card)
+    {
+        AfterCardEnteredCombatMirrors.Seal();
+        IReadOnlyList<AbstractModel> listeners = GetMirroredHookListeners(run: false);
+        if (listeners is MirroredHookListenerSnapshot snapshot
+            && !snapshot.HasAny(MirroredHookMask.AfterCardGeneratedForCombat))
+            return;
+
+        bool hasExternal = AfterCardEnteredCombatMirrors.HasExternalRegistrations;
+        if (!hasExternal)
+        {
+            for (int index = 0; index < listeners.Count; index++)
+            {
+                AbstractModel listener = listeners[index];
+                if (listener.GetType().Assembly != typeof(AbstractModel).Assembly
+                    && AfterCardEnteredCombatMirrors.HasOverride(listener))
+                {
+                    hasExternal = true;
+                    break;
+                }
+            }
+        }
+        if (!hasExternal)
+            return;
+
+        var context = new AfterCardEnteredCombatMirrorContext
+        {
+            Simulator = simulator,
+            Card = card
+        };
+        for (int index = 0; index < listeners.Count; index++)
+        {
+            AbstractModel listener = listeners[index];
+            if (listener.GetType().Assembly == typeof(AbstractModel).Assembly)
+                continue;
+            AfterCardEnteredCombatMirrors.Invoke(listener, context);
+        }
     }
 
     public void AfterCardRemovedFromCombat(PredictedCard card)

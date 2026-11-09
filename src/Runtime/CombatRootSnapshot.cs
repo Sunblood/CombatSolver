@@ -175,8 +175,16 @@ internal sealed class CombatRootSnapshot
         if (!NGame.IsMainThread())
             throw new InvalidOperationException("Combat root snapshot must be captured on the main thread.");
         Engine.InCombat.Mirrors.Hooks.TurnEnd.AfterSideTurnEndLateMirrors.Seal();
+        Engine.InCombat.Mirrors.Hooks.TurnEnd.AfterSideTurnEndMirrors.Seal();
+        Engine.InCombat.Mirrors.Hooks.TurnEnd.BeforeSideTurnEndMirrors.Seal();
         Engine.InCombat.Mirrors.Hooks.TurnStart.BeforeSideTurnStartMirrors.Seal();
         Engine.InCombat.Mirrors.Hooks.TurnStart.AfterPlayerTurnStartMirrors.Seal();
+        Engine.InCombat.Mirrors.Hooks.TurnStart.BeforeHandDrawMirrors.Seal();
+        Engine.InCombat.Mirrors.Hooks.TurnStart.AfterSideTurnStartMirrors.Seal();
+        Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetMirrors.Seal();
+        Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetLateMirrors.Seal();
+        Engine.InCombat.Mirrors.Hooks.Card.AfterCardEnteredCombatMirrors.Seal();
+        Engine.InCombat.Mirrors.Hooks.Power.ModifyPowerAmountReceivedMirrors.Seal();
         Engine.InCombat.Mirrors.Hooks.TurnEnd.ExtraTurnMirrors.Seal();
         Stopwatch stopwatch = Stopwatch.StartNew();
 

@@ -124,6 +124,7 @@ internal sealed partial class CombatPredictionSimulator
         Creature? target,
         [NotNullWhen(true)] out PredictionTraceFrame? frame)
     {
+        using var activeSimulation = CombatPredictionContext.Enter(this);
         int historyEntryStart = History.Entries.Count;
         var resources = SpendResources(card, isAutoPlay: false);
         if (HasPendingChoice)
@@ -158,6 +159,7 @@ internal sealed partial class CombatPredictionSimulator
     // unconverted prices too, and must not invoke the same read-only cost hooks a second time.
     public bool CanPlay(PredictedCard card, out int energyCost, out int starCost)
     {
+        using var activeSimulation = CombatPredictionContext.Enter(this);
         energyCost = 0;
         starCost = 0;
         if (card.HasKeyword(State, CardKeyword.Unplayable))

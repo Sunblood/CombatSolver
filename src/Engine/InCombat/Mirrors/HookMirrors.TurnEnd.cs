@@ -55,4 +55,55 @@ internal static partial class HookMirrors
         }
         return true;
     }
+
+    public static bool AfterSideTurnEndExternal(
+        CombatPredictionSimulator simulator, CombatSide side, IReadOnlyList<Creature> participants)
+    {
+        AfterSideTurnEndMirrors.Seal();
+        if (simulator.HasPendingChoice)
+            return false;
+
+        bool hasExternal = AfterSideTurnEndMirrors.HasExternalRegistrations;
+        if (!hasExternal)
+        {
+            foreach (AbstractModel listener in IterateCombatHookListeners(simulator, MirroredHookMask.AfterSideTurnEndLate))
+            {
+                if (listener.GetType().Assembly != typeof(AbstractModel).Assembly
+                    && AfterSideTurnEndMirrors.HasOverride(listener))
+                {
+                    hasExternal = true;
+                    break;
+                }
+            }
+        }
+        if (!hasExternal)
+            return true;
+
+        List<CardHookReceiver>? receivers = null;
+        foreach (AbstractModel listener in IterateCombatHookListeners(simulator, MirroredHookMask.AfterSideTurnEndLate))
+        {
+            if (listener.GetType().Assembly == typeof(AbstractModel).Assembly)
+                continue;
+            PredictedCard? card = listener is CardModel model
+                ? simulator.State.GetPlayerCombatState(model.Owner).FindCard(model)
+                : null;
+            (receivers ??= []).Add(new(listener, card));
+        }
+        if (receivers is null)
+            return true;
+
+        var context = new AfterSideTurnEndMirrorContext
+        {
+            Simulator = simulator,
+            Side = side,
+            Participants = participants
+        };
+        foreach (CardHookReceiver receiver in receivers)
+        {
+            AfterSideTurnEndMirrors.Invoke(receiver.Current, context);
+            if (simulator.HasPendingChoice)
+                return false;
+        }
+        return true;
+    }
 }

@@ -773,7 +773,7 @@ $forkBoundaryChecks = @(
     },
     @{
         Path = Join-Path $repositoryRoot "src/Runtime/ContinuationStamp.cs"
-        Text = "AdaptedCardOnPlayMirrors.CaptureLiveStamp()"
+        Text = "AdaptedCardOnPlayMirrors.CaptureLiveStamp("
     },
     @{
         Path = Join-Path $repositoryRoot "src/Runtime/ContinuationStamp.cs"

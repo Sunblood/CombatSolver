@@ -48,6 +48,7 @@ internal sealed partial class CombatBeamSolver
         SearchBoundaryReason boundary,
         IReadOnlySet<uint> processedEnemyDeaths)
     {
+        using var activeSimulation = CombatPredictionContext.Enter(simulator);
         SimCreatureState player = simulator.State.GetCreature(_player.Creature);
         SimulatedCombatState combat = (SimulatedCombatState)simulator.State.CombatState;
         int enemyHp = 0;

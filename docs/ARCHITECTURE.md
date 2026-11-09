@@ -83,7 +83,7 @@ Smart 药水梯度在主成员耗尽时间时拥有一个独立成员时间：�
 
 Fork 发生在动作、选牌、Power、死亡和出牌事务允许复制的稳定边界。玩家记录的卡牌/药水嵌套效果作用域由引擎持有；选牌检查点保存不可变身份序列，恢复建立分支独占列表。最外层效果结束后再检查手空。稳定根及跨回合状态的该作用域为空，普通 Fork 要求为空。
 
-未知 gameplay subscriber 显式拒绝；已支持来源在主线程捕获，并在分支中消费隔离状态。登记合同与封闭入口见 [第三方适配手册](third-party/README.md)。
+未知 gameplay subscriber 显式拒绝；已支持来源在主线程捕获，并在分支中消费隔离状态。`ThirdPartyMirrorRegistration` 与回合/资源/卡牌/Power 镜像表提供运行时 `Type` 登记与基类 `sealed override` 转发解包（`MirrorMethodSpec.RegisterForwardedHook`）；`AdaptedCardOnPlayMirrors` 支持在主线程根捕获时评估条件激活谓词；`CombatPredictionContext.ActiveSimulation` 在模拟执行期间维护只读线程局部上下文供已适配辅助查询读取当前分支状态。登记合同与封闭入口见 [第三方适配手册](third-party/README.md)。
 
 资源初始化冻结玩家基础最大能量，最大能量与抽牌按分支监听表、回合号及遗物隐藏状态结算；准备根和普通跨回合都一次性消费延迟能量。玩家 Hook 活动标志由引擎在死亡清理时关闭，Fork 继承并进入状态键，金币回调据此筛选成员。攻击意图由分支当前怪物 AI 行动派生，行动替换即时生效。
 

@@ -75,6 +75,13 @@ internal sealed class MirroredHookListenerFilter(bool enabled)
         [nameof(AbstractModel.AfterDamageReceivedLate)] = MirroredHookMask.AfterDamageReceivedLate,
         [nameof(AbstractModel.AfterDeath)] = MirroredHookMask.AfterDeath,
         [nameof(AbstractModel.AfterEnergyReset)] = MirroredHookMask.AfterEnergyReset,
+        [nameof(AbstractModel.AfterEnergyResetLate)] = MirroredHookMask.AfterEnergyReset,
+        [nameof(AbstractModel.AfterCardEnteredCombat)] = MirroredHookMask.AfterCardGeneratedForCombat,
+        [nameof(AbstractModel.BeforeHandDraw)] = MirroredHookMask.BeforeSideTurnStart,
+        [nameof(AbstractModel.AfterSideTurnStart)] = MirroredHookMask.BeforeSideTurnStart,
+        [nameof(AbstractModel.AfterSideTurnEnd)] = MirroredHookMask.AfterSideTurnEndLate,
+        [nameof(AbstractModel.TryModifyPowerAmountReceived)] = MirroredHookMask.AfterAutoPostPlayPhaseEntered,
+        [nameof(AbstractModel.AfterModifyingPowerAmountReceived)] = MirroredHookMask.AfterAutoPostPlayPhaseEntered,
         // A shared bit conservatively retains any receiver of the gold callback family.
         // Exact registries still distinguish each method; unrelated default calls are no-ops.
         [nameof(AbstractModel.ModifyGoldGained)] = MirroredHookMask.GoldCallbacks,

@@ -7,6 +7,7 @@ using MegaCrit.Sts2.Core.Models.Cards;
 using MegaCrit.Sts2.Core.Models.Monsters;
 using MegaCrit.Sts2.Core.Models.Powers;
 using CombatSolver.Engine.Common;
+using CombatSolver.Engine.InCombat.Mirrors;
 using CombatSolver.Engine.InCombat.Mirrors.Hooks.Card;
 using CombatSolver.Engine.InCombat.Simulation;
 using CombatSolver.Engine.InCombat.Mirrors.Hooks.Attack;
@@ -425,7 +426,9 @@ internal sealed partial class SimulatedCombatState
             simulator.AppendExecutionContinuation(new BeforeHandDrawFrame(player, returningCards, BeforeHandDrawStage.Relics));
             return true;
         }
-        return ContinueBeforeHandDraw(simulator, player, choices, returningCards, BeforeHandDrawStage.Relics);
+        if (ContinueBeforeHandDraw(simulator, player, choices, returningCards, BeforeHandDrawStage.Relics))
+            return true;
+        return !HookMirrors.BeforeHandDrawExternal(simulator, player, choices);
     }
 
     public bool PrepareBeforeHandDraw(CombatPredictionSimulator simulator, Player player)

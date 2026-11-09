@@ -12,6 +12,7 @@ internal static class PersistentRelicSupport
 {
     public static bool ShouldPlayerResetEnergy(SimulatedCombatState combat, Player player)
     {
+        using var activeSimulation = CombatPredictionContext.Enter(combat);
         int simulatedTurn = combat.GetPlayerTurnNumber(player);
         foreach (AbstractModel listener in combat.IterateHookListeners())
         {
@@ -29,6 +30,7 @@ internal static class PersistentRelicSupport
 
     public static bool ShouldFlush(SimulatedCombatState combat, Player player)
     {
+        using var activeSimulation = CombatPredictionContext.Enter(combat);
         int simulatedTurn = combat.GetPlayerTurnNumber(player);
         foreach (AbstractModel listener in combat.IterateHookListeners())
         {

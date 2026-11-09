@@ -47,6 +47,7 @@
 
   <ItemGroup>
     <Compile Remove="tools/**/*.cs" />
+    <Compile Remove="adapters/**/*.cs" />
     <Compile Remove="outputs/**/*.cs" />
     <Compile Remove=".local/**/*.cs" />
     <EmbeddedResource Include="src/UI/English.json" LogicalName="CombatSolver.UI.English.json" />

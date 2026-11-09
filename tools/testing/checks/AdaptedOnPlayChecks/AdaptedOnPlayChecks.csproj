@@ -11,6 +11,7 @@
     <Compile Include="$(CombatSolverRepositoryRoot)src/Engine/Common/Mirrors/MethodMirrorRegistryDescriptor.cs" Link="MethodMirrorRegistryDescriptor.cs" />
     <Compile Include="$(CombatSolverRepositoryRoot)src/Engine/Common/Mirrors/MethodMirrorContext.cs" Link="MethodMirrorContext.cs" />
     <Compile Include="$(CombatSolverRepositoryRoot)src/Engine/Common/Mirrors/MirrorMethodSpec.cs" Link="MirrorMethodSpec.cs" />
+    <Compile Include="$(CombatSolverRepositoryRoot)src/Engine/Common/Mirrors/ThirdPartyMirrorRegistration.cs" Link="ThirdPartyMirrorRegistration.cs" />
     <Compile Include="$(CombatSolverRepositoryRoot)src/Engine/Common/PredictionUnsupportedException.cs" Link="PredictionUnsupportedException.cs" />
     <Reference Include="0Harmony" HintPath="$(Sts2DataDir)/0Harmony.dll" />
   </ItemGroup>

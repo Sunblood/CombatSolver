@@ -1,6 +1,6 @@
-﻿# 已适配 OnPlay 补丁组合
+# 已适配 OnPlay 补丁组合
 
-`AdaptedCardOnPlayMirrors.Register<TCard>` 为精确卡牌类型登记一组已审阅的 Harmony 补丁和唯一的完整预测实现。它是内部开发接口，外部程序集需要 publicizer，不是按 Mod ID 的放行名单。
+`AdaptedCardOnPlayMirrors.Register<TCard>`（以及按运行时 `Type` 登记的 `AdaptedCardOnPlayMirrors.Register(Type cardType, ...)` 重载）为精确卡牌类型登记一组已审阅的 Harmony 补丁和唯一的完整预测实现，并接受可选的 `Func<CombatState, bool>? isPatchActiveInCombat = null` 根捕获活动谓词。它是内部开发接口，外部程序集需要 publicizer，不是按 Mod ID 的放行名单。
 
 ```csharp
 AdaptedCardOnPlayMirrors.Register<MyCard>(
@@ -8,8 +8,11 @@ AdaptedCardOnPlayMirrors.Register<MyCard>(
     exactOnPlayMethod,
     [new AdaptedOnPlayPatch(HarmonyPatchType.Prefix, exactPatchMethod,
         "my-harmony-owner", Priority.Normal, [], [])],
-    (card, context) => ApplyCompletePredictedEffect(card, context));
+    (card, context) => ApplyCompletePredictedEffect(card, context),
+    isPatchActiveInCombat: combatState => HasMyEnablingRelic(combatState));
 ```
+
+当 `isPatchActiveInCombat` 提供且在主线程根捕获时对当前 `CombatState` 返回 `false`（例如补丁虽然全局挂载在原版卡牌 `OnPlay` 上，但仅在玩家持有特定遗物或 Modifier 时才改变行为），根审计仍严格核对 Harmony 补丁签名，但本次战斗将该卡牌回落到标准原版 `CardOnPlayMirrors` 镜像，并在 live 与 predicted 的 `ContinuationStamp` 中记录 `:0`（激活时记录 `:1`）。后台搜索只消费根冻结的选择结果，不会在模拟线程中重复调用该谓词。
 
 调用必须在首次根／live continuation 捕获前完成。目标必须是该精确类型的 OnPlay 方法；不能传同名重载或其他类型的方法。每个类型只能登记一个完整组合，不组合多份局部补偿。补丁声明在登记时复制为不可变签名，调用方后来修改数组不会改变声明。
 

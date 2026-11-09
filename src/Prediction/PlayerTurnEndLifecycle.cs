@@ -18,6 +18,7 @@ internal static class PlayerTurnEndLifecycle
                 simulator, combat, participants, etherealExhaustCount)
             || !TurnStartRelicSupport.TriggerAfterSideTurnEnd(
                 simulator, combat, participants, etherealExhaustCount)
+            || !HookMirrors.AfterSideTurnEndExternal(simulator, CombatSide.Player, participants)
             || !HookMirrors.AfterSideTurnEndLate(simulator, CombatSide.Player, participants))
         {
             return false;

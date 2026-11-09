@@ -246,6 +246,7 @@ internal sealed partial class CombatBeamSolver
         _run.WorkPacer.YieldIfNeeded();
         _run.ReplayCount++;
         CombatPredictionSimulator simulator = root.ForkSimulator();
+        using var activeSimulation = CombatPredictionContext.Enter(simulator);
         SimulatedCombatState simulatedCombat = (SimulatedCombatState)simulator.State.CombatState;
         ForkableSet<uint> processedEnemyDeaths = [];
         foreach (Creature enemy in root.Enemies)
@@ -392,6 +393,7 @@ internal sealed partial class CombatBeamSolver
             turn = startingTurn;
             shufflesCrossed = roundCheckpoint?.ShufflesCrossed ?? parentSnapshot.ShufflesCrossed;
         }
+        using var activeSimulation = CombatPredictionContext.Enter(simulator);
         if (triggerRecorder != null)
             simulator.ActionRelicTriggers = triggerRecorder;
 

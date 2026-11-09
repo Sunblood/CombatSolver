@@ -1253,6 +1253,8 @@ internal sealed partial class SimulatedCombatState
             return false;
         if (!TurnStartRelicSupport.TriggerAfterSideTurnStart(simulator, this, side, participants))
             return false;
+        if (!Engine.InCombat.Mirrors.HookMirrors.AfterSideTurnStartExternal(simulator, side, participants))
+            return false;
         PowerLifecycleSupport.ResolvePowerAmountChanges(simulator, this);
         return !HasPendingChoice;
     }

@@ -31,6 +31,17 @@ internal sealed partial class UnattendedTestRunner
             // Shared bits certify a family, rather than a method with the bit's name.
             string[] hookNames = mask switch
             {
+                MirroredHookMask.AfterAutoPostPlayPhaseEntered => [nameof(AbstractModel.AfterAutoPostPlayPhaseEntered),
+                    nameof(AbstractModel.TryModifyPowerAmountReceived),
+                    nameof(AbstractModel.AfterModifyingPowerAmountReceived)],
+                MirroredHookMask.AfterCardGeneratedForCombat => [nameof(AbstractModel.AfterCardGeneratedForCombat),
+                    nameof(AbstractModel.AfterCardEnteredCombat)],
+                MirroredHookMask.AfterEnergyReset => [nameof(AbstractModel.AfterEnergyReset),
+                    nameof(AbstractModel.AfterEnergyResetLate)],
+                MirroredHookMask.BeforeSideTurnStart => [nameof(AbstractModel.BeforeSideTurnStart),
+                    nameof(AbstractModel.BeforeHandDraw), nameof(AbstractModel.AfterSideTurnStart)],
+                MirroredHookMask.AfterSideTurnEndLate => [nameof(AbstractModel.AfterSideTurnEndLate),
+                    nameof(AbstractModel.AfterSideTurnEnd)],
                 MirroredHookMask.GoldCallbacks => [nameof(AbstractModel.ModifyGoldGained),
                     nameof(AbstractModel.AfterModifyingGoldGained), nameof(AbstractModel.AfterGoldGained)],
                 MirroredHookMask.ExtraTurnCallbacks => [nameof(AbstractModel.ShouldTakeExtraTurn),

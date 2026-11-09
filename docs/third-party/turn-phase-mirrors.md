@@ -1,6 +1,6 @@
 # 回合阶段镜像
 
-当前开放 `AbstractModel.BeforeSideTurnStart`、`AfterPlayerTurnStart`（Early/普通/Late）和 `AfterSideTurnEndLate`。这是效果登记，与
+当前开放 `AbstractModel.BeforeSideTurnStart`、`BeforeHandDraw`、`AfterEnergyReset`、`AfterEnergyResetLate`、`AfterPlayerTurnStart`（Early/普通/Late）、`AfterSideTurnStart`、`BeforeSideTurnEnd`（VeryEarly/Early/普通）、`AfterSideTurnEnd` 和 `AfterSideTurnEndLate`，以及卡牌入场 `AfterCardEnteredCombat` 与能力层数修改 `TryModifyPowerAmountReceived` / `AfterModifyingPowerAmountReceived`。这是效果登记，与
 [模型状态登记](model-state.md) 分开；不代表其他阶段、ModHelper 订阅者或
 Harmony 补丁已经受支持。外部程序集使用与其他内部镜像相同的 publicizer 接入方式。
 
@@ -51,17 +51,44 @@ writePredicted 与正确 Fork。实际效果用模拟器命令实现，不能调
 BeforeSideTurnStartMirrors.Register(Type modelType, Action<AbstractModel, BeforeSideTurnStartMirrorContext> handler);
 BeforeSideTurnStartMirrors.RegisterIgnored(Type modelType);
 
+BeforeHandDrawMirrors.Register(Type modelType, Action<AbstractModel, BeforeHandDrawMirrorContext> handler);
+BeforeHandDrawMirrors.RegisterIgnored(Type modelType);
+
+AfterEnergyResetMirrors.Register(Type modelType, Action<AbstractModel, CombatMirrorContext> handler);
+AfterEnergyResetMirrors.RegisterIgnored(Type modelType);
+AfterEnergyResetLateMirrors.Register(Type modelType, Action<AbstractModel, CombatMirrorContext> handler);
+AfterEnergyResetLateMirrors.RegisterIgnored(Type modelType);
+
 AfterPlayerTurnStartMirrors.RegisterEarly(Type modelType, Action<AbstractModel, AfterPlayerTurnStartMirrorContext> handler);
 AfterPlayerTurnStartMirrors.Register(Type modelType, Action<AbstractModel, AfterPlayerTurnStartMirrorContext> handler);
 AfterPlayerTurnStartMirrors.RegisterLate(Type modelType, Action<AbstractModel, AfterPlayerTurnStartMirrorContext> handler);
 AfterPlayerTurnStartMirrors.RegisterIgnored(Type modelType);
 
+AfterSideTurnStartMirrors.Register(Type modelType, Action<AbstractModel, AfterSideTurnStartMirrorContext> handler);
+AfterSideTurnStartMirrors.RegisterIgnored(Type modelType);
+
+BeforeSideTurnEndMirrors.RegisterVeryEarly(Type modelType, Action<AbstractModel, BeforeSideTurnEndMirrorContext> handler);
+BeforeSideTurnEndMirrors.RegisterEarly(Type modelType, Action<AbstractModel, BeforeSideTurnEndMirrorContext> handler);
+BeforeSideTurnEndMirrors.Register(Type modelType, Action<AbstractModel, BeforeSideTurnEndMirrorContext> handler);
+BeforeSideTurnEndMirrors.RegisterIgnored(Type modelType);
+
+AfterSideTurnEndMirrors.Register(Type modelType, Action<AbstractModel, AfterSideTurnEndMirrorContext> handler);
+AfterSideTurnEndMirrors.RegisterIgnored(Type modelType);
+
 AfterSideTurnEndLateMirrors.Register(Type modelType, Action<AbstractModel, AfterSideTurnEndLateMirrorContext> handler);
 AfterSideTurnEndLateMirrors.RegisterIgnored(Type modelType);
+
+AfterCardEnteredCombatMirrors.Register(Type modelType, Action<AbstractModel, AfterCardEnteredCombatMirrorContext> handler);
+AfterCardEnteredCombatMirrors.RegisterIgnored(Type modelType);
+
+ModifyPowerAmountReceivedMirrors.RegisterTryModify(Type modelType, Func<AbstractModel, ModifyPowerAmountReceivedMirrorContext, ModifyPowerAmountReceivedMirrorResult> handler);
+ModifyPowerAmountReceivedMirrors.RegisterTryModifyIgnored(Type modelType);
+ModifyPowerAmountReceivedMirrors.RegisterAfterModifying(Type modelType, Action<AbstractModel, AfterModifyingPowerAmountReceivedMirrorContext> handler);
+ModifyPowerAmountReceivedMirrors.RegisterAfterModifyingIgnored(Type modelType);
 ```
 
 `Type` 由 `ThirdPartyMirrorRegistration` 桥回底层注册表的泛型实参；那条桥是**唯一**允许把
-`Type` 变成泛型实参的地方，适配层不要自己写 `MakeGenericMethod`。
+`Type` 变成泛型实参的地方，适配层不要自己写 `MakeGenericMethod`。若目标 Mod 的抽象基类使用 `sealed override` 拦截原生 Hook 并转发给自定义虚方法（如 `OnBeforeHandDraw`），适配层可在登记具体子类前调用 `ThirdPartyMirrorRegistration.RegisterForwardedHook(wrapperBaseType, nativeHookMethod, forwardedVirtualMethod)`，使重写检查沿转发目标虚方法核验子类是否真正重写了该阶段。
 
 `RegisterIgnored(Type)` 是「已复核：这个覆写没有任何预测相关行为」的显式结论，用于只有音效、
 台词、屏幕特效等纯表现层的第三方覆写。`AfterPlayerTurnStart` 那一版按类型**实际重写的那一个**

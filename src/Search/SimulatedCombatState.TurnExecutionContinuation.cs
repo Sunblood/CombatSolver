@@ -1,4 +1,5 @@
 using CombatSolver.Engine.Common;
+using CombatSolver.Engine.InCombat.Mirrors;
 using CombatSolver.Engine.InCombat.Simulation;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -48,8 +49,10 @@ internal sealed partial class SimulatedCombatState
         public bool Resume(CombatPredictionSimulator simulator)
         {
             var combat = (SimulatedCombatState)simulator.State.CombatState;
-            return !combat.ContinueBeforeHandDraw(simulator, Player, combat.ActiveExecutionChoices,
-                ReturningCards, Stage, NextIndex);
+            if (combat.ContinueBeforeHandDraw(simulator, Player, combat.ActiveExecutionChoices,
+                ReturningCards, Stage, NextIndex))
+                return false;
+            return HookMirrors.BeforeHandDrawExternal(simulator, Player, combat.ActiveExecutionChoices);
         }
     }
 

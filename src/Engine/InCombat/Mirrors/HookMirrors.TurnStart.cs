@@ -3,6 +3,7 @@ using CombatSolver.Engine.InCombat.Mirrors.Hooks.TurnStart;
 using CombatSolver.Engine.InCombat.Simulation;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Creatures;
+using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
 
 namespace CombatSolver.Engine.InCombat.Mirrors;
@@ -64,6 +65,111 @@ internal static partial class HookMirrors
         foreach (CardHookReceiver receiver in remaining)
         {
             BeforeSideTurnStartMirrors.Invoke(receiver.Current, context);
+            if (simulator.HasPendingChoice)
+                return false;
+        }
+        return true;
+    }
+
+    public static bool BeforeHandDrawExternal(
+        CombatPredictionSimulator simulator, Player player, TurnStartChoiceCursor choices)
+    {
+        BeforeHandDrawMirrors.Seal();
+        if (simulator.HasPendingChoice)
+            return false;
+
+        bool hasExternal = BeforeHandDrawMirrors.HasExternalRegistrations;
+        if (!hasExternal)
+        {
+            foreach (AbstractModel listener in IterateCombatHookListeners(simulator, MirroredHookMask.BeforeSideTurnStart))
+            {
+                if (listener.GetType().Assembly != typeof(AbstractModel).Assembly
+                    && BeforeHandDrawMirrors.HasOverride(listener))
+                {
+                    hasExternal = true;
+                    break;
+                }
+            }
+        }
+        if (!hasExternal)
+            return true;
+
+        List<CardHookReceiver>? receivers = null;
+        foreach (AbstractModel listener in IterateCombatHookListeners(simulator, MirroredHookMask.BeforeSideTurnStart))
+        {
+            if (listener.GetType().Assembly == typeof(AbstractModel).Assembly)
+                continue;
+            PredictedCard? card = listener is CardModel model
+                ? simulator.State.GetPlayerCombatState(model.Owner).FindCard(model)
+                : null;
+            (receivers ??= []).Add(new(listener, card));
+        }
+        if (receivers is null)
+            return true;
+
+        var context = new BeforeHandDrawMirrorContext
+        {
+            Simulator = simulator,
+            Player = player,
+            Choices = choices
+        };
+        foreach (CardHookReceiver receiver in receivers)
+        {
+            BeforeHandDrawMirrors.Invoke(receiver.Current, context);
+            if (simulator.HasPendingChoice)
+            {
+                simulator.RejectExecutionContinuation();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static bool AfterSideTurnStartExternal(
+        CombatPredictionSimulator simulator, CombatSide side, IReadOnlyList<Creature> participants)
+    {
+        AfterSideTurnStartMirrors.Seal();
+        if (simulator.HasPendingChoice)
+            return false;
+
+        bool hasExternal = AfterSideTurnStartMirrors.HasExternalRegistrations;
+        if (!hasExternal)
+        {
+            foreach (AbstractModel listener in IterateCombatHookListeners(simulator, MirroredHookMask.BeforeSideTurnStart))
+            {
+                if (listener.GetType().Assembly != typeof(AbstractModel).Assembly
+                    && AfterSideTurnStartMirrors.HasOverride(listener))
+                {
+                    hasExternal = true;
+                    break;
+                }
+            }
+        }
+        if (!hasExternal)
+            return true;
+
+        List<CardHookReceiver>? receivers = null;
+        foreach (AbstractModel listener in IterateCombatHookListeners(simulator, MirroredHookMask.BeforeSideTurnStart))
+        {
+            if (listener.GetType().Assembly == typeof(AbstractModel).Assembly)
+                continue;
+            PredictedCard? card = listener is CardModel model
+                ? simulator.State.GetPlayerCombatState(model.Owner).FindCard(model)
+                : null;
+            (receivers ??= []).Add(new(listener, card));
+        }
+        if (receivers is null)
+            return true;
+
+        var context = new AfterSideTurnStartMirrorContext
+        {
+            Simulator = simulator,
+            Side = side,
+            Participants = participants
+        };
+        foreach (CardHookReceiver receiver in receivers)
+        {
+            AfterSideTurnStartMirrors.Invoke(receiver.Current, context);
             if (simulator.HasPendingChoice)
                 return false;
         }

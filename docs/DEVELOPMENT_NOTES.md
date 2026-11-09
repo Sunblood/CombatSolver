@@ -27,3 +27,7 @@ Testing 在完整原生检查点已核验、当前手牌上限为默认 10 时�
 ### Smart 药水审计独立成员时间（PR #230）
 
 Smart 无强制用药、主结果无药且根有可搜索药水时，在主搜索耗尽时间后为首个可选药水层提供软预算的 1/5（1–30 秒）。该层按软预算保留结果，关联取消令牌提供 1/6 收尾时间，显式层数上限固定为一层；其他政策继续沿原入口执行。后置开局前缀补搜使用请求账本。已耗尽请求会增加这一层的实际耗时。根因、原包数据与验证范围见[Q011 记录](issues/q011-worldlines-20261006.md)。
+
+### 第三方镜像扩展入口与回合阶段开放
+
+开放 `BeforeHandDrawMirrors`、`AfterSideTurnStartMirrors`、`BeforeSideTurnEndMirrors`（VeryEarly/Early/普通）、`AfterSideTurnEndMirrors`、`AfterEnergyResetMirrors`（扩至 `AbstractModel`）、`AfterEnergyResetLateMirrors`、`AfterCardEnteredCombatMirrors` 与 `ModifyPowerAmountReceivedMirrors`（TryModify/AfterModifying）的 `MethodMirrorRegistry` 表及运行时 `Type` 登记入口，在 `CombatRootSnapshot.Capture` 首根冻结并接入 `MirroredHookListenerFilter`。`MirrorMethodSpec.RegisterForwardedHook` 支持解包第三方基类的 `sealed override` 转发虚方法；`AdaptedCardOnPlayMirrors.Register` 新增按 `Type` 登记重载与主线程根捕获条件激活谓词 `isPatchActiveInCombat`；`CombatPredictionContext.ActiveSimulation` 在模拟入口维护线程局部只读作用域供第三方辅助查询读取当前分支 `CombatState`。

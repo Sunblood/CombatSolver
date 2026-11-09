@@ -101,6 +101,8 @@ CrabRagePower 的同伴死亡结算由 `AfterDeathMirrors` 独占：力量、格
 适配者仍须核对读取的数据属于当前预测分支；只读方法也可能读到 live 手牌、Power 或费用。
 姿态伤害倍率、费用修改等效果只有在完整分支差分通过后，才能认定原实现回落适用。
 
+为了协助需要从当前战斗状态读取分支数值的第三方只读辅助函数，模拟器在后台工作线程执行期间维护线程局部作用域 `CombatPredictionContext.ActiveSimulation`（提供 `CombatPredictionContext.IsSimulating` 与 `CombatPredictionContext.ActiveCombatState`）。当第三方辅助方法（例如没有显式 `ICombatState` 参数或需要把传入的引用解析到当前模拟分支的查询函数）在模拟线程中被调用时，可优先检查 `CombatPredictionContext.ActiveCombatState` 读取分支状态，主线程实机执行时该值为 `null`。
+
 `CardIsPlayableMirrors` 使用独立的镜像分派：继承基类的牌返回 `true`；有显式登记的重写执行
 对应镜像；未登记的重写记录 `MethodNotMirrored`，并返回调用方提供的 `true`。这条覆盖提示
 用于暴露缺失语义，适配者必须登记真实可打出条件，才能保证搜索按预测手牌判断合法性。
@@ -111,9 +113,9 @@ CrabRagePower 的同伴死亡结算由 `AfterDeathMirrors` 独占：力量、格
 
 `OpeningActionRegistry` 和 `TargetPlanRegistry` 也只登记求解器内置的开局身份与目标变体，不提供第三方运行时注册；第三方卡牌的实际出牌与选牌语义仍使用下文的镜像登记入口。
 
-### 2.1 统一形状的镜像注册表（46 张）
+### 2.1 统一形状的镜像注册表（53 张）
 
-详细登记、字段和示例见 [third-party-mirrors](mirrors.md)。
+详细登记、字段和示例见 [third-party-mirrors](mirrors.md)。若第三方框架基类用 `sealed override` 拦截原生虚方法并转发给自定义虚方法，可通过 `ThirdPartyMirrorRegistration.RegisterForwardedHook(wrapperBaseType, nativeHookMethod, forwardedVirtualMethod)` 登记转发关系，使覆盖检查识别子类对自定义虚方法的重写。
 
 ### 2.2 战略估值：会改变出牌顺序的 Power
 
@@ -172,30 +174,29 @@ StrategicEffectMirrors.Register<TYourPower>(requirements, evaluate, host);
 完整签名、对象重映射、字段格式及验证边界见[模型状态适配](model-state.md)。
 与其他内部镜像入口一样，外部程序集仍需要 publicizer；本接口尚未发布。
 
-### 2.10 回合阶段效果
+### 2.10 回合阶段与通用模型 Hook 效果
 
 `BeforeSideTurnStartMirrors.Register<TModel>(handler)` 登记 `AbstractModel.BeforeSideTurnStart`，
 支持 Power、遗物和 Modifier，玩家与敌方在清格挡前共用入口。上下文包含 `Side`、
 `Participants` 和分支 `CombatState`；第三方与原版按监听表顺序派发。没有第三方监听者的
 战斗保留原版批次顺序，双方共用单项结算体。入口位于 BeginSideTurn 与回合初 Power
-快照之后；它不能替代抽牌后的 AfterSideTurnStart 或其他尚未开放的阶段。
+快照之后。
+
+`BeforeHandDrawMirrors.Register<TModel>(handler)` 登记 `AbstractModel.BeforeHandDraw`，在玩家常规抽牌前（含首回合与跨回合）按战斗监听表派发给第三方监听者。`AfterSideTurnStartMirrors.Register<TModel>(handler)` 登记 `AbstractModel.AfterSideTurnStart`，在 `AfterPlayerTurnStart` 之后或敌方回合开始阶段按监听表派发给第三方监听者。`AfterEnergyResetMirrors.Register<TModel>(handler)` 与 `AfterEnergyResetLateMirrors.Register<TModel>(handler)` 分别登记 `AbstractModel.AfterEnergyReset` 与 `AfterEnergyResetLate`（覆盖 Power、遗物与 Modifier）。
 
 `AfterPlayerTurnStartMirrors.RegisterEarly/Register/RegisterLate<TModel>(handler)` 分别登记
 抽牌后的 Early、普通、Late；接收者为 AbstractModel，上下文包含 `Player`。扩展路径逐轮
 重新捕获监听表，轮内保持顺序；已有外部登记时始终按三轮派发，以覆盖普通阶段新增的监听者。没有外部登记且入口没有第三方覆写时保留原 Power/遗物批次与续执行帧。
 三张表共用冻结门；回调挂起时完整重放，不复用未知第三方内部的局部执行帧。
 
-`AfterSideTurnEndLateMirrors.Register<TModel>(handler)` 为精确运行时类型登记
-`AbstractModel.AfterSideTurnEndLate` 的预测实现，适用于遗物、Modifier、Power 等模型。
-玩家与敌方回合末共用入口，回调自行根据 `Side`、`Participants` 判断是否生效。
-底层沿用 `MethodMirrorRegistry` 和覆盖描述元数据，外部仍需 publicizer。
+`BeforeSideTurnEndMirrors.RegisterVeryEarly/RegisterEarly/Register<TModel>(handler)` 登记回合结束前的三个阶段，`AfterSideTurnEndMirrors.Register<TModel>(handler)` 登记常规 `AbstractModel.AfterSideTurnEnd`，`AfterSideTurnEndLateMirrors.Register<TModel>(handler)` 为精确运行时类型登记 `AbstractModel.AfterSideTurnEndLate` 的预测实现，适用于遗物、Modifier、Power 等模型。玩家与敌方回合末共用入口，回调自行根据 `Side`、`Participants` 判断是否生效。此外，`AfterCardEnteredCombatMirrors.Register<TModel>(handler)` 登记 `AbstractModel.AfterCardEnteredCombat`；`ModifyPowerAmountReceivedMirrors.RegisterTryModify` 与 `RegisterAfterModifying` 分别登记 `AbstractModel.TryModifyPowerAmountReceived` 与 `AfterModifyingPowerAmountReceived`。底层均沿用 `MethodMirrorRegistry` 和覆盖描述元数据，外部仍需 publicizer。
 
 登记必须在首次 `CombatRootSnapshot.Capture` 或本阶段分发之前完成，此后明确拒绝登记。
 这些阶段遇到未登记且非纯表现的重写会记录风险并停止搜索。来源属于已加载第三方
 内容模型时抛出 `IncompatibleGameplayModException`，向玩家说明该 Mod 暂未适配；
 原版或来源未知时抛出 `PredictionUnsupportedException` 并保留诊断上传提示。
 **只拿得到 `Type` 的适配器（不引用目标 Mod 程序集、运行期反射找类型）用同一张表的按 `Type`
-重载**：`Register(Type, handler)`／`RegisterEarly`／`RegisterLate` 与 `RegisterIgnored(Type)`，
+重载**：`Register(Type, handler)`／`RegisterVeryEarly`／`RegisterEarly`／`RegisterLate`、`RegisterTryModify(Type, ...)`／`RegisterAfterModifying(Type, ...)` 与 `RegisterIgnored(Type)`，
 判据与泛型入口相同；`RegisterIgnored` 用于已复核的纯表现层覆写。
 完整签名、暂停和状态约束见[回合阶段镜像](turn-phase-mirrors.md)。
 
@@ -205,14 +206,14 @@ StrategicEffectMirrors.Register<TYourPower>(requirements, evaluate, host);
 第三方来源共用镜像登记表，按原生监听顺序判断，第一个 true 结束判断。后置回调先固定全部监听成员，
 再按原顺序逐项结算；第三方可以读取此前来源已经结算的分支状态。选牌暂停交回既有动作重放。
 搜索回放与实机回合末风险评估共用同一入口。
-登记时机和冻结门与上面三张表相同；重写了却没登记的第三方类型同样停止搜索，只做表现的重写登记一个
+登记时机和冻结门与上面各表相同；重写了却没登记的第三方类型同样停止搜索，只做表现的重写登记一个
 返回 false / 什么都不做的处理即可。按 `Type` 的重载为 `RegisterShouldTakeExtraTurn(Type, handler)` /
 `RegisterAfterTakingExtraTurn(Type, handler)`。
 
 ### 2.11 已适配 OnPlay 补丁组合
 
-`AdaptedCardOnPlayMirrors.Register<TCard>` 登记精确目标、完整补丁组合与唯一完整预测实现。
-首次根／续用捕获后冻结；根选择通过标准 registry 分派，命中后不再执行原版 OnPlay/spec。
+`AdaptedCardOnPlayMirrors.Register<TCard>`（以及按 `Type` 的 `Register(Type, ...)` 重载）登记精确目标、完整补丁组合与唯一完整预测实现，并支持可选的 `Func<CombatState, bool>? isPatchActiveInCombat` 根捕获活动谓词。
+首次根／续用捕获后冻结；根选择通过标准 registry 分派，命中且本场激活时不再执行原版 OnPlay/spec，若谓词判定本场未激活则回落原版镜像并在续用戳中记录未激活状态。
 组合核对包含实际顺序、owner、优先级和 before／after；不放行未知来源或明确不兼容 Mod。
 配置进入 continuation，旧根及路线沿既有边界核对失效。建根时冻结所有已补丁 OnPlay 方法，
 并审完全部已登记的卡牌类型。战斗中首次出现的未登记类型只按冻结方法集合判定：
@@ -362,7 +363,7 @@ StrategicEffectMirrors.Register<TYourPower>(requirements, evaluate, host);
 | `NativeModelCloneConcurrency` | 预测克隆只放行已核对原版阶段、原版变量及 BaseLib/Ritsu 稀疏元数据复制补丁组合的普通原版卡牌；附魔/灾厄、第三方模型/变量和未知补丁保留原锁。Power 只放行已物化原版变量、继承默认克隆及 InitInternalData 的原版类型，同时核对基阶段与变量 getter 补丁；自定义初始化保持原锁。每个线程最外层模拟隔离域重新核对，不支持求解中安装补丁；原版 MutableClone 保护不变。没有新增外部注册入口 | 精确框架适配 |
 | `RitsuEmptyCapabilityFastPathPatches` | 模拟隔离域的空 capability 集可直接保留原卡牌标签序列；不枚举/复制标签，不缓存分支值。非空贡献者与精确类型默认来源继续框架入口；晚注册刷新来源代次，已物化的空集合仍按框架语义处理。live 不旁路，无新增登记入口 | 精确框架适配 |
 | `DynamicVarCloneMetadataPatches` | 模拟克隆只优化已核对为空默认值的 BaseLib 提示/升级字段与 Ritsu 提示工厂；非空值照常复制，live 调用保持原框架行为。其他附加字段继续原有克隆逻辑，不属于此优化入口 | 精确框架适配 |
-| `CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects`、`FlushPlayerHandAtTurnEnd`、BeforeHandDraw、AfterSideTurnStart | 常规回合末及这些抽牌/阵营时点仍无通用登记；注能核心的首回合产球由 `TriggerRelicsAfterSideTurnStart` 显式结算，准备选牌根可能早于产球，不能认为所有开局效果已在根内。其闪电伤害加成仍走只读 `ModifyOrbValue`，只读数值支持不代表产球生命周期已适配。BeforeSideTurnStart、AfterPlayerTurnStart（Early/普通/Late）及 AfterSideTurnEndLate 已开放，见 §2.10，不能互相替代 | 部分开放 |
+| `FlushPlayerHandAtTurnEnd` 与原版注能核心开局产球时点 | 手牌回合末冲刷仍按内置留手/消耗流程结算；注能核心的首回合产球由 `TriggerRelicsAfterSideTurnStart` 显式结算，准备选牌根可能早于产球，不能认为所有开局效果已在根内。其闪电伤害加成仍走只读 `ModifyOrbValue`，只读数值支持不代表产球生命周期已适配。BeforeSideTurnStart、BeforeHandDraw、AfterPlayerTurnStart（Early/普通/Late）、AfterSideTurnStart、BeforeSideTurnEnd（VeryEarly/Early/普通）、AfterSideTurnEnd 及 AfterSideTurnEndLate 已开放，见 §2.10 | 部分开放 |
 | `CombatPredictionSimulator.OnPlayWrapper` | 出牌后补抽没有挂载点 | 待做 |
 | `CardChoiceSupport.RemovalPriority` 的排序口径 | 移除类选择按**单卡**估值排，不看牌库其余部分；弃牌那一侧已经是「源牌堆平均值减本牌估值」的相对口径，消耗与转变没有。表现为求解器不会为了压出无限而主动烧牌。起手牌那一层已由 §2.7 打开，相对口径这一层仍然封闭 | 待做 |
 | `ContinuationStamp.AppendCard` 的 `private=` 段与 `CombatBeamSolver.CaptureCardStateFingerprintForTesting` 的 `switch (preview)` | **卡牌**的隐藏字段按原版类型写死（利爪、基因算法、巨锤、狂暴、镰刀、疯狂科学），第三方卡牌的私有计数进不了指纹。Power 那一侧已有 `PowerHiddenStateMirrors`，见 §2.6 | 待做 |

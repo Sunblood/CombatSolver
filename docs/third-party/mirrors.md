@@ -2,7 +2,7 @@
 
 [返回适配手册](README.md)
 
-### 2.1 统一形状的镜像注册表（46 张）
+### 2.1 统一形状的镜像注册表（53 张）
 
 绝大多数登记走同一个形状：
 
@@ -10,7 +10,7 @@
 XxxMirrors.Registry.Register<TYourType>(handler);
 ```
 
-46 张注册表按域分布在 `src/Engine/InCombat/Mirrors/` 下：
+53 张注册表按域分布在 `src/Engine/InCombat/Mirrors/` 下：
 
 死亡后生成单位的镜像应保持原生生成时点。例如补货由 `AfterDeathMirrors` 调用分支生成入口，旧个体仍在阵容中，其最大生命参与替补生命判重。把生成延后到阵容清理后，即使 RNG 调用次数相同也会改变抽样结果；登记镜像时应同步移除原领域补偿中的同一生成动作。
 
@@ -20,16 +20,14 @@ XxxMirrors.Registry.Register<TYourType>(handler);
 
 | 目录 | 注册表数 | 覆盖什么 | 你多半要用的 |
 |---|---|---|---|
-| `Hooks/` | 39 | 战斗 hook：攻击、格挡、伤害、死亡、卡牌、球体、回合边界 | 按你重写了哪个 hook 挑，例如 `AfterDamageGivenMirrors` |
+| `Hooks/` | 46 | 战斗 hook：攻击、格挡、伤害、死亡、卡牌、球体、回合边界 | 按你重写了哪个 hook 挑，例如 `AfterDamageGivenMirrors` |
 | `Cards/` | 4 | 出牌、可打出性、回合结束留手、结算落点 | `CardOnPlayMirrors`、`CardIsPlayableMirrors` |
 | `Potions/` | 1 | 药水使用 | `PotionOnUseMirrors` |
 | `Enchantments/`、`Afflictions/` | 各 1 | 附魔与病症的出牌效果 | 少见 |
 
-**回合开始重置能量之后的能力结算走 `Hooks/Resources/AfterEnergyResetMirrors`。** 这一张是从
-`PersistentPowerSupport` 里那个写死五个原版类型的 switch 改过来的，所以以前第三方能力在这个
-时点既没有登记入口，漏了也不报——别的钩子漏登记会记一条 `MethodNotMirrored` 风险，那个 switch
-不经过注册表，只是静默跳过。重写了 `AfterEnergyReset` 的能力（每回合少一点能量、多一点能量、
-多抽一张这一类）现在必须在这里登记。层数为零的能力不分发，和原版每个重写第一件事都是空转一致。
+**回合开始重置能量之后的结算走 `Hooks/Resources/AfterEnergyResetMirrors` 与 `AfterEnergyResetLateMirrors`。** `AfterEnergyResetMirrors` 的接收者已扩展为 `AbstractModel`（覆盖能力、遗物与 Modifier），并提供 `AfterEnergyResetLateMirrors` 处理晚期重置后回调。重写了 `AfterEnergyReset` 或 `AfterEnergyResetLate` 的能力、遗物与 Modifier 现在必须在这里登记。层数为零的能力不分发，和原版每个重写第一件事都是空转一致。
+
+**基类 `sealed override` 转发解包。** 若第三方框架基类用 `sealed override` 拦截 `AbstractModel` 的原生虚方法并转发给自己的受保护虚方法（例如 `CustomRelicModel.AfterSideTurnStart` 密封重写后调用 `OnAfterSideTurnStart`），直接检查子类对原生 Hook 的 `DeclaringType` 会得到基类而非子类。适配层可在登记前调用 `ThirdPartyMirrorRegistration.RegisterForwardedHook(wrapperBaseType, nativeHookMethod, forwardedVirtualMethod)`，使 `MirrorMethodSpec` 沿转发目标虚方法核验子类是否真正重写了该 Hook。
 
 **注意目录里的文件数比注册表多。** `Cards/` 下有十几个 `*Mirrors.cs`，但注册表只有 4 张——
 `BespokeCardMirrors`、`CardGenerationCardMirrors` 这些是**处理器文件**，它们往

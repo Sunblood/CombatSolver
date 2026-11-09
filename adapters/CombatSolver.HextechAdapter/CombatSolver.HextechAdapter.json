@@ -1,0 +1,21 @@
+{
+  "id": "CombatSolver.HextechAdapter",
+  "name": "CombatSolver — HextechRunes Adapter",
+  "author": "Torch",
+  "description": "Programmatic companion bridge mod adapting HextechRunes for CombatSolver route search.",
+  "version": "0.1.0",
+  "has_pck": false,
+  "has_dll": true,
+  "affects_gameplay": false,
+  "min_game_version": "0.111.0",
+  "dependencies": [
+    {
+      "id": "CombatSolver",
+      "min_version": "0.50.1"
+    },
+    {
+      "id": "HextechRunes",
+      "min_version": "0.9.8"
+    }
+  ]
+}

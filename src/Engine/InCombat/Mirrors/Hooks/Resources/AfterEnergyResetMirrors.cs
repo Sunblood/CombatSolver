@@ -2,15 +2,17 @@ using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Orbs;
 using MegaCrit.Sts2.Core.Models.Powers;
+using MegaCrit.Sts2.Core.Models.Relics;
+using CombatSolver.Engine.Common;
 using CombatSolver.Engine.Common.Mirrors;
 using CombatSolver.Engine.InCombat.Simulation;
 
 namespace CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources;
 
-using Registry = MethodMirrorRegistry<PowerModel, AfterEnergyResetMirrorContext>;
+using Registry = MethodMirrorRegistry<AbstractModel, AfterEnergyResetMirrorContext>;
 
 /// <summary>
-/// 回合开始重置能量之后，能力那一轮结算。对应 <c>Hook.AfterEnergyReset</c> 的能力部分。
+/// 回合开始重置能量之后，能力与遗物的结算。对应 <c>Hook.AfterEnergyReset</c>。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,7 +27,7 @@ using Registry = MethodMirrorRegistry<PowerModel, AfterEnergyResetMirrorContext>
 /// 而路线上没有任何提示说哪里算错了。
 /// </para>
 /// <para>
-/// 改成注册表之后：原版那五个照原样登记成 handler，行为逐位不变；
+/// 改成注册表之后：原版能力与遗物照原样登记成 handler，行为逐位不变；
 /// <see cref="EnergyNextTurnPower" /> 登记成 Ignored——它的能量是在回合开始算能量时由
 /// <c>ConsumeEnergyNextTurn</c> 一次性取走的，在这里再结算一次就是重复计数；
 /// 其余任何重写了这个钩子的类型，登记过就按登记的算，没登记就记一条风险，不再静默。
@@ -38,10 +40,71 @@ internal static class AfterEnergyResetMirrors
         [typeof(Player)]);
 
     private static readonly Registry Registry = CreateRegistry();
+    private static readonly object RegistrationLock = new();
+    private static bool _sealed;
+    private static bool _hasExternalRegistrations;
 
-    public static void Invoke(PowerModel power, AfterEnergyResetMirrorContext context)
+    internal static bool HasExternalRegistrations => Volatile.Read(ref _hasExternalRegistrations);
+
+    internal static void Seal()
     {
-        Registry.Invoke(power, context);
+        if (Volatile.Read(ref _sealed))
+            return;
+        lock (RegistrationLock)
+            Volatile.Write(ref _sealed, true);
+    }
+
+    public static void Register<TModel>(Action<TModel, AfterEnergyResetMirrorContext> handler)
+        where TModel : AbstractModel
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        if (typeof(TModel).IsAbstract)
+            throw new ArgumentException("AfterEnergyReset mirrors require a concrete runtime model type.");
+        lock (RegistrationLock)
+        {
+            if (_sealed)
+                throw new InvalidOperationException("AfterEnergyReset mirrors must be registered before root capture or dispatch.");
+            Registry.Register(handler);
+            Volatile.Write(ref _hasExternalRegistrations, true);
+        }
+    }
+
+    public static void Register(
+        Type modelType,
+        Action<AbstractModel, AfterEnergyResetMirrorContext> handler)
+    {
+        ArgumentNullException.ThrowIfNull(modelType);
+        ArgumentNullException.ThrowIfNull(handler);
+        if (modelType.IsAbstract)
+            throw new ArgumentException("AfterEnergyReset mirrors require a concrete runtime model type.", nameof(modelType));
+        lock (RegistrationLock)
+        {
+            if (_sealed)
+                throw new InvalidOperationException("AfterEnergyReset mirrors must be registered before root capture or dispatch.");
+            ThirdPartyMirrorRegistration.Register(Registry, modelType, handler);
+            Volatile.Write(ref _hasExternalRegistrations, true);
+        }
+    }
+
+    public static void RegisterIgnored(Type modelType)
+    {
+        ArgumentNullException.ThrowIfNull(modelType);
+        lock (RegistrationLock)
+        {
+            if (_sealed)
+                throw new InvalidOperationException("AfterEnergyReset mirrors must be registered before root capture or dispatch.");
+            Registry.RegisterIgnored(modelType);
+            Volatile.Write(ref _hasExternalRegistrations, true);
+        }
+    }
+
+    internal static bool HasOverride(AbstractModel model)
+        => Registry.ResolveDispatchKind(model) != MirrorDispatchKind.NotOverridden;
+
+    public static void Invoke(AbstractModel listener, AfterEnergyResetMirrorContext context)
+    {
+        Seal();
+        Registry.Invoke(listener, context);
     }
 
     private static Registry CreateRegistry()
@@ -53,11 +116,20 @@ internal static class AfterEnergyResetMirrors
         registry.Register<RadiancePower>(HandleRadiancePower);
         registry.Register<SpinnerPower>(HandleSpinnerPower);
         registry.Register<StarNextTurnPower>(HandleStarNextTurnPower);
+        registry.Register<ArtOfWar>(HandleRelic);
+        registry.Register<FakeVenerableTeaSet>(HandleRelic);
+        registry.Register<VenerableTeaSet>(HandleRelic);
 
         // 回合开始算能量的时候已经用 ConsumeEnergyNextTurn 取走并清零了，这里再给一次就是双份。
         registry.RegisterIgnored<EnergyNextTurnPower>();
 
         return registry;
+    }
+
+    private static void HandleRelic(RelicModel relic, AfterEnergyResetMirrorContext context)
+    {
+        if (!relic.IsMelted && ReferenceEquals(relic.Owner, context.Player))
+            context.Combat.TriggerRelicAfterEnergyReset(context.Simulator, relic, context.Player);
     }
 
     private static void HandleGenesisPower(GenesisPower power, AfterEnergyResetMirrorContext context)
@@ -98,11 +170,11 @@ internal static class AfterEnergyResetMirrors
     }
 }
 
-internal sealed class AfterEnergyResetMirrorContext : CombatMirrorContext<PowerModel>
+internal sealed class AfterEnergyResetMirrorContext : CombatMirrorContext
 {
     /// <summary>刚刚重置过能量的那名玩家。原版每个重写第一件事都是拿它和自己的主人比对。</summary>
     public required Player Player { get; init; }
 
     public SimulatedCombatState Combat => CombatState as SimulatedCombatState
-        ?? throw new InvalidOperationException("回合开始的能力结算缺少分支回合状态。");
+        ?? throw new InvalidOperationException("回合开始的能量重置后置结算缺少分支回合状态。");
 }

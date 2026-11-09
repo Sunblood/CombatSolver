@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using CombatSolver.Engine.Common;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Modding;
@@ -81,10 +82,10 @@ internal static class PredictionModPatchAudit
     /// This is a best-effort boundary: card types that only appear later through in-combat generation are not
     /// visible at capture time and are not audited here.
     /// </remarks>
-    public static void ValidateCardOnPlay(IEnumerable<CardModel> cards)
-        => CaptureCardOnPlay(cards);
+    public static void ValidateCardOnPlay(IEnumerable<CardModel> cards, CombatState? combat = null)
+        => CaptureCardOnPlay(cards, combat);
 
-    internal static AdaptedOnPlaySnapshot? CaptureCardOnPlay(IEnumerable<CardModel> cards)
+    internal static AdaptedOnPlaySnapshot? CaptureCardOnPlay(IEnumerable<CardModel> cards, CombatState? combat = null)
     {
         bool adapted = AdaptedCardOnPlayMirrors.Seal();
         Dictionary<Type, AdaptedCardOnPlayMirrors.Registration?>? selections = adapted ? [] : null;
@@ -99,6 +100,8 @@ internal static class PredictionModPatchAudit
             if (selected is null && firstForeign is { } unsupported)
                 throw new IncompatibleGameplayModException(unsupported.ModId, unsupported.ModName,
                     unsupported.Description, "combat");
+            if (selected is not null && combat is not null && selected.IsPatchActiveInCombat is { } isActive && !isActive(combat))
+                selected = null;
             selections?.Add(type, selected);
         }
         if (selections is null)
@@ -116,7 +119,11 @@ internal static class PredictionModPatchAudit
                     deferredFailures.Add(type, $"{unsupported.ModName} ({unsupported.ModId}) patches the OnPlay of "
                         + $"{type.FullName} without a matching adapter: {unsupported.Description}.");
                 else
+                {
+                    if (selected is not null && combat is not null && selected.IsPatchActiveInCombat is { } isActive && !isActive(combat))
+                        selected = null;
                     selections.Add(type, selected);
+                }
             }
             catch (PredictionUnsupportedException error)
             {
@@ -125,7 +132,7 @@ internal static class PredictionModPatchAudit
             }
         }
         HashSet<MethodInfo> patchedOnPlayTargets = [];
-        string stamp = AdaptedCardOnPlayMirrors.CaptureLiveStamp(patchedOnPlayTargets)!;
+        string stamp = AdaptedCardOnPlayMirrors.CaptureLiveStamp(patchedOnPlayTargets, combat)!;
         return new(selections, stamp, patchedOnPlayTargets, deferredFailures);
     }
 

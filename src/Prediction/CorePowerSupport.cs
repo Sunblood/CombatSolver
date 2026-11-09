@@ -553,6 +553,8 @@ internal static class CorePowerSupport
             return false;
         TriggerTransientSideTurnEndPowers(simulator, combat, CombatSide.Enemy, enemies);
         TickDurations(combat);
+        if (!HookMirrors.AfterSideTurnEndExternal(simulator, CombatSide.Enemy, enemies))
+            return false;
         return HookMirrors.AfterSideTurnEndLate(simulator, CombatSide.Enemy, enemies);
     }
 

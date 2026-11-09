@@ -18,7 +18,34 @@ internal static class TurnStartRelicSupport
         CombatPredictionSimulator simulator,
         SimulatedCombatState combat,
         Player player)
-        => combat.TriggerRelicsAfterEnergyReset(simulator, player);
+    {
+        combat.TriggerRelicsAfterEnergyReset(simulator, player);
+        if (simulator.HasPendingChoice)
+            return;
+
+        CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetMirrors.Seal();
+        CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetMirrorContext? context = null;
+        foreach (MegaCrit.Sts2.Core.Models.AbstractModel listener in
+                 ((CombatSolver.Engine.Common.ICombatPredictionHookListenerSource)combat)
+                     .MirroredHookListeners)
+        {
+            if (listener is MegaCrit.Sts2.Core.Models.PowerModel
+                || listener.GetType().Assembly == typeof(MegaCrit.Sts2.Core.Models.AbstractModel).Assembly)
+            {
+                continue;
+            }
+            if (!CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetMirrors.HasOverride(listener))
+                continue;
+            context ??= new CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetMirrorContext
+            {
+                Simulator = simulator,
+                Player = player,
+            };
+            CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
+        }
+    }
 
     public static bool TriggerAfterPlayerTurnStart(
         CombatPredictionSimulator simulator,
@@ -53,12 +80,40 @@ internal static class TurnStartRelicSupport
         SimulatedCombatState combat,
         Player player)
     {
+        CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetLateMirrors.Seal();
         foreach (BoundPhylactery relic in combat.RelicsOf(player)
                      .OfType<BoundPhylactery>()
                      .Where(static relic => !relic.IsMelted))
         {
             if (combat.GetPlayerTurnNumber(player) != 1)
                 combat.SummonOsty(simulator, player, relic.DynamicVars.Summon.IntValue);
+            if (simulator.HasPendingChoice)
+                return;
+        }
+
+        CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetLateMirrorContext? context = null;
+        foreach (MegaCrit.Sts2.Core.Models.AbstractModel listener in
+                 ((CombatSolver.Engine.Common.ICombatPredictionHookListenerSource)combat)
+                     .MirroredHookListeners)
+        {
+            if (listener.GetType().Assembly == typeof(MegaCrit.Sts2.Core.Models.AbstractModel).Assembly
+                && !CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetLateMirrors.HasExternalRegistrations)
+            {
+                continue;
+            }
+            if (listener is BoundPhylactery
+                || !CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetLateMirrors.HasOverride(listener))
+            {
+                continue;
+            }
+            context ??= new CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetLateMirrorContext
+            {
+                Simulator = simulator,
+                Player = player,
+            };
+            CombatSolver.Engine.InCombat.Mirrors.Hooks.Resources.AfterEnergyResetLateMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 }

@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(CombatSolverRepositoryRoot)local.props" Condition="Exists('$(CombatSolverRepositoryRoot)local.props')" />
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>13.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CombatSolver.HextechAdapter</AssemblyName>
+    <RootNamespace>CombatSolver.HextechAdapter</RootNamespace>
+    <NoWarn>$(NoWarn);CS0436;KrafsPublicizer001</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <SteamRoot Condition="'$(SteamRoot)' == '' and '$(OS)' == 'Windows_NT' and Exists('D:/Steam')">D:/Steam</SteamRoot>
+    <SteamRoot Condition="'$(SteamRoot)' == '' and '$(OS)' == 'Windows_NT'">$(MSBuildProgramFiles32)/Steam</SteamRoot>
+    <SteamRoot Condition="'$(SteamRoot)' == ''">$(HOME)/.local/share/Steam</SteamRoot>
+    <Sts2Dir Condition="'$(Sts2Dir)' == ''">$(SteamRoot)/steamapps/common/Slay the Spire 2</Sts2Dir>
+    <Sts2DataDir Condition="'$(Sts2DataDir)' == '' and '$(OS)' == 'Windows_NT'">$(Sts2Dir)/data_sts2_windows_x86_64</Sts2DataDir>
+    <Sts2DataDir Condition="'$(Sts2DataDir)' == ''">$(Sts2Dir)/data_sts2_linuxbsd_x86_64</Sts2DataDir>
+    <CombatSolverDllPath Condition="'$(CombatSolverDllPath)' == '' and Exists('$(CombatSolverRepositoryRoot).godot/mono/temp/bin/$(Configuration)/CombatSolver.dll')">$(CombatSolverRepositoryRoot).godot/mono/temp/bin/$(Configuration)/CombatSolver.dll</CombatSolverDllPath>
+    <CombatSolverDllPath Condition="'$(CombatSolverDllPath)' == '' and Exists('$(CombatSolverRepositoryRoot).godot/mono/temp/bin/Release/CombatSolver.dll')">$(CombatSolverRepositoryRoot).godot/mono/temp/bin/Release/CombatSolver.dll</CombatSolverDllPath>
+    <CombatSolverDllPath Condition="'$(CombatSolverDllPath)' == '' and Exists('$(Sts2Dir)/mods/CombatSolver/CombatSolver.dll')">$(Sts2Dir)/mods/CombatSolver/CombatSolver.dll</CombatSolverDllPath>
+    <AdapterOutputDir>$(Sts2Dir)/mods/CombatSolver.HextechAdapter</AdapterOutputDir>
+    <CopyModOnBuild Condition="'$(CopyModOnBuild)' == ''">true</CopyModOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0" PrivateAssets="all" />
+    <Publicize Include="sts2" IncludeVirtualMembers="false" IncludeCompilerGeneratedMembers="false" />
+    <Publicize Include="CombatSolver" IncludeVirtualMembers="false" IncludeCompilerGeneratedMembers="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="sts2" HintPath="$(Sts2DataDir)/sts2.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(Sts2DataDir)/0Harmony.dll" Private="false" />
+    <Reference Include="GodotSharp" HintPath="$(Sts2DataDir)/GodotSharp.dll" Private="false" />
+    <Reference Include="CombatSolver" HintPath="$(CombatSolverDllPath)" Private="false" />
+  </ItemGroup>
+
+  <Target Name="CopyAdapterMod" AfterTargets="Build" Condition="'$(CopyModOnBuild)' == 'true'">
+    <MakeDir Directories="$(AdapterOutputDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(AdapterOutputDir)" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)/CombatSolver.HextechAdapter.json" DestinationFolder="$(AdapterOutputDir)" />
+  </Target>
+</Project>
